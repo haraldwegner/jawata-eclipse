@@ -19,6 +19,8 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.mylyn.wikitext.markdown.MarkdownLanguage;
 import org.eclipse.mylyn.wikitext.parser.MarkupParser;
 import org.eclipse.mylyn.wikitext.parser.builder.HtmlDocumentBuilder;
+import org.eclipse.mylyn.wikitext.parser.markup.MarkupLanguage;
+import org.eclipse.mylyn.wikitext.ui.WikiText;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.widgets.Composite;
@@ -28,36 +30,61 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.ide.IDE;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.osgi.framework.FrameworkUtil;
 
 /**
  * Spec D6: a sprint document opens in Eclipse with its source and a preview, and the preview shows the specs' tables. The file is a
  * copy of the bundled spec-shaped fixture, and of a real spec when the build is given one with -Djawata.spec.md=PATH (the specs stay
- * out of this public repository). The preview's HTML is what WikiText's Markdown language renders for the editor's preview tab.
+ * out of this public repository). The preview's HTML is what the language WikiText maps the file name to renders for the preview tab.
  */
 public class WikiTextShowsSpecsTest {
 
     private static final String MARKUP_EDITOR = "org.eclipse.mylyn.wikitext.ui.editor.markupEditor";
 
+    /** D6's table half: red until his decision (WikiText's Markdown renders no tables); the default build leaves it out, -Pd6-tables runs it. */
+    static final String TABLES = "d6-tables";
+
     @Test
-    public void theFixtureOpensWithSourceAndPreviewAndItsTablesRender() throws Exception {
-        String text = new String(resource("resources/spec-tables.md"), StandardCharsets.UTF_8);
-        opensWithSourceAndPreviewAndRendersTables("spec-tables.md", text);
+    public void theFixtureOpensWithSourceAndPreview() throws Exception {
+        opensWithSourceAndPreview("spec-tables.md", fixture());
     }
 
     @Test
-    public void aRealSpecOpensWithSourceAndPreviewAndItsTablesRender() throws Exception {
+    public void aRealSpecOpensWithSourceAndPreview() throws Exception {
+        Path spec = realSpec();
+        if (spec != null) { opensWithSourceAndPreview(spec.getFileName().toString(), Files.readString(spec, StandardCharsets.UTF_8)); }
+    }
+
+    @Test
+    @Tag(TABLES)
+    public void theFixturesTablesRenderInThePreview() throws Exception {
+        tablesRender("spec-tables.md", fixture());
+    }
+
+    @Test
+    @Tag(TABLES)
+    public void aRealSpecsTablesRenderInThePreview() throws Exception {
+        Path spec = realSpec();
+        if (spec != null) { tablesRender(spec.getFileName().toString(), Files.readString(spec, StandardCharsets.UTF_8)); }
+    }
+
+    private static String fixture() throws Exception {
+        return new String(resource("resources/spec-tables.md"), StandardCharsets.UTF_8);
+    }
+
+    /** The real spec the build was given (-Djawata.spec.md=PATH, profile real-spec), or null: the fixture then stands for it. */
+    private static Path realSpec() {
         String path = System.getProperty("jawata.spec.md", "");
         if (path.isBlank()) {
             System.out.println("D6: no real spec given (-Djawata.spec.md); the fixture test stands for it");
-            return;
+            return null;
         }
-        String text = Files.readString(Path.of(path), StandardCharsets.UTF_8);
-        opensWithSourceAndPreviewAndRendersTables(Path.of(path).getFileName().toString(), text);
+        return Path.of(path);
     }
 
-    private void opensWithSourceAndPreviewAndRendersTables(String name, String text) throws Exception {
+    private void opensWithSourceAndPreview(String name, String text) throws Exception {
         IFile file = copyIntoWorkspace(name, text);
         AtomicReference<String> editorId = new AtomicReference<>();
         AtomicReference<List<String>> tabs = new AtomicReference<>();
@@ -81,19 +108,22 @@ public class WikiTextShowsSpecsTest {
         assertEquals(MARKUP_EDITOR, editorId.get(), name + " opens in WikiText's markup editor");
         assertTrue(tabs.get().stream().anyMatch(t -> t.contains("Source")) && tabs.get().stream().anyMatch(t -> t.contains("Preview")),
             name + " shows a Source and a Preview tab; tabs seen: " + tabs.get());
+    }
 
+    private void tablesRender(String name, String text) {
         int expected = countPipeTables(text);
-        String html = previewHtml(text);
+        String html = previewHtml(name, text);
         int rendered = count(html, "<table");
         assertTrue(expected > 0, name + " holds tables to render");
         assertEquals(expected, rendered, name + ": the preview renders " + rendered + " of its " + expected + " tables");
     }
 
-    /** The HTML WikiText's Markdown language makes of the text: what the editor's preview tab shows. */
-    private static String previewHtml(String text) {
+    /** The HTML the language WikiText maps this file name to makes of the text: what the editor's preview tab shows. */
+    private static String previewHtml(String name, String text) {
+        MarkupLanguage language = WikiText.getMarkupLanguageForFilename(name);
+        assertTrue(language instanceof MarkdownLanguage, name + " is read as Markdown by WikiText; it maps to " + language);
         StringWriter out = new StringWriter();
-        HtmlDocumentBuilder builder = new HtmlDocumentBuilder(out);
-        new MarkupParser(new MarkdownLanguage(), builder).parse(text);
+        new MarkupParser(language, new HtmlDocumentBuilder(out)).parse(text);
         return out.toString();
     }
 

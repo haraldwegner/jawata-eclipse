@@ -3,7 +3,12 @@
 #
 # P13: the built update site installs into clean Eclipse 4.41 (2026-09) Java and RCP downloads (Linux,
 # p2 director), and Eclipse started from each, in a virtual screen, runs with the plug-in present: the
-# workbench bundle reaches ACTIVE and both org.jawata bundles are resolved.
+# workbench bundle reaches ACTIVE, both org.jawata bundles are resolved, and so are the two Eclipse bundles
+# spec D6 and D7 stand on (WikiText's Markdown editor, the Terminal's local shell) — the PDE tests prove
+# their behaviour in Tycho's test runtime, which carries the same versions as both downloads.
+# R8: the update site ships none of JDT, LTK, SWT, JFace, an slf4j provider, org.jawata.jdtpatch or
+# org.jawata.resident (contract §16 row 1). R9, engine side: no jawata-mcp build file names this repository.
+# The commit hook: installed in this clone, and its own test passes.
 #
 # Needs: a built update site (xvfb-run -a mvn -B verify), xvfb-run, curl, sha512sum, and the engine checkout
 # with its dist built (it runs the engine's promises first).
@@ -59,7 +64,7 @@ starts_with_plugin() {  # $1 eclipse dir, $2 run dir
         sleep 5
         if grep -qE 'ACTIVE +org\.eclipse\.ui\.workbench_' "$out"; then up=1; break; fi
     done
-    printf 'ss org.jawata\n' >&3 2>/dev/null; sleep 3
+    printf 'ss org.jawata\nss org.eclipse.mylyn.wikitext.markdown.ui\nss org.eclipse.terminal.connector.local\n' >&3 2>/dev/null; sleep 3
     printf 'close\n' >&3 2>/dev/null; sleep 1; printf 'y\n' >&3 2>/dev/null
     exec 3>&-
     for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
@@ -67,11 +72,28 @@ starts_with_plugin() {  # $1 eclipse dir, $2 run dir
     wait "$pid" 2>/dev/null
     [ "$up" = 1 ] || { echo "    the workbench never reached ACTIVE (180 s); console: $out"; return 1; }
     local b
-    for b in org.jawata.eclipse org.jawata.eclipse.chat; do
+    for b in org.jawata.eclipse org.jawata.eclipse.chat org.eclipse.mylyn.wikitext.markdown.ui org.eclipse.terminal.connector.local; do
         grep -qE "(RESOLVED|STARTING|ACTIVE) +${b//./\\.}_" "$out" \
             || { echo "    $b is not resolved in the running Eclipse; console: $out"; return 1; }
     done
 }
+
+echo "R8, R9 and the commit hook"
+shipped="$(ls "$site/plugins" | sed 's/_[0-9].*//')"
+forbidden='^(org\.eclipse\.(jdt|ltk|swt|jface)|org\.jawata\.(jdtpatch|resident)|slf4j\.(simple|nop|jdk14|reload4j)|ch\.qos\.logback)'
+bad="$(printf '%s\n' "$shipped" | grep -E "$forbidden")"
+if [ -z "$bad" ]; then
+    ok "R8: the update site ships $(printf '%s\n' "$shipped" | wc -l) bundles, none of JDT, LTK, SWT, JFace, an slf4j provider, jdtpatch or resident"
+else
+    fail "R8: the update site ships $(echo $bad)"
+fi
+named="$(cd "$engine" && git ls-files | grep -E '(^|/)(pom\.xml|MANIFEST\.MF|feature\.xml)$|\.target$' | xargs grep -l 'org\.jawata\.eclipse' 2>/dev/null)"
+if [ -z "$named" ]; then ok "R9: no jawata-mcp build file names org.jawata.eclipse"; else fail "R9: jawata-mcp build files name it: $(echo $named)"; fi
+if cmp -s "$here/scripts/commit-msg" "$here/.git/hooks/commit-msg" && sh "$here/scripts/test-commit-hook.sh" > /dev/null 2>&1; then
+    ok "the commit hook is installed in this clone and its test passes"
+else
+    fail "the commit hook is not installed (scripts/install-hooks.sh) or its test fails (scripts/test-commit-hook.sh)"
+fi
 
 for pkg in java rcp; do
     echo "P13 $pkg package"
@@ -90,7 +112,7 @@ for pkg in java rcp; do
         continue
     fi
     if starts_with_plugin "$eclipse" "$run"; then
-        ok "P13 $pkg: Eclipse starts in Xvfb, the workbench is ACTIVE and both org.jawata bundles are resolved"
+        ok "P13 $pkg: Eclipse starts in Xvfb, the workbench is ACTIVE; both org.jawata bundles, WikiText's Markdown editor and the Terminal's local shell are resolved"
     else
         fail "P13 $pkg: Eclipse did not start with the plug-in present"
     fi
