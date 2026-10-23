@@ -18,6 +18,7 @@
     <module>bundles/org.jawata.eclipse</module>
     <module>bundles/org.jawata.eclipse.chat</module>
     <module>features/org.jawata.eclipse.feature</module>
+    <module>tests/org.jawata.eclipse.tests</module>
     <module>repository</module>
   </modules>
 

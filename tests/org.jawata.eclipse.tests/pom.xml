@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PDE tests: they start an Eclipse workbench, so the build runs under xvfb-run (spec D6, D7). -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.jawata.eclipse</groupId>
+    <artifactId>jawata-eclipse-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+  <artifactId>org.jawata.eclipse.tests</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>eclipse-test-plugin</packaging>
+
+  <properties>
+    <!-- a real spec to open as well as the fixture: mvn -Djawata.spec.md=PATH (kept out of this public repository) -->
+    <jawata.spec.md></jawata.spec.md>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>target-platform-configuration</artifactId>
+        <version>${tycho.version}</version>
+        <configuration>
+          <dependency-resolution>
+            <extraRequirements>
+              <requirement><type>eclipse-feature</type><id>org.eclipse.platform</id><versionRange>0.0.0</versionRange></requirement>
+              <requirement><type>eclipse-feature</type><id>org.eclipse.mylyn.wikitext.feature</id><versionRange>0.0.0</versionRange></requirement>
+              <requirement><type>eclipse-feature</type><id>org.eclipse.terminal.feature</id><versionRange>0.0.0</versionRange></requirement>
+            </extraRequirements>
+          </dependency-resolution>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>tycho-surefire-plugin</artifactId>
+        <version>${tycho.version}</version>
+        <configuration>
+          <useUIHarness>true</useUIHarness>
+          <useUIThread>false</useUIThread>
+          <product>org.eclipse.platform.ide</product>
+          <application>org.eclipse.ui.ide.workbench</application>
+          <systemProperties>
+            <jawata.spec.md>${jawata.spec.md}</jawata.spec.md>
+          </systemProperties>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
