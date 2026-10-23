@@ -13,11 +13,6 @@
   <version>0.1.0-SNAPSHOT</version>
   <packaging>eclipse-test-plugin</packaging>
 
-  <properties>
-    <!-- D6's table half waits for his decision (WikiText's Markdown renders no tables): left out by default, run with -Pd6-tables -->
-    <d6.excludedGroups>d6-tables</d6.excludedGroups>
-  </properties>
-
   <build>
     <plugins>
       <plugin>
@@ -43,7 +38,6 @@
           <useUIThread>false</useUIThread>
           <product>org.eclipse.platform.ide</product>
           <application>org.eclipse.ui.ide.workbench</application>
-          <excludedGroups>${d6.excludedGroups}</excludedGroups>
         </configuration>
       </plugin>
     </plugins>
@@ -91,10 +85,6 @@
           </plugin>
         </plugins>
       </build>
-    </profile>
-    <profile>
-      <id>d6-tables</id>
-      <properties><d6.excludedGroups>no-group-left-out</d6.excludedGroups></properties>
     </profile>
   </profiles>
 </project>

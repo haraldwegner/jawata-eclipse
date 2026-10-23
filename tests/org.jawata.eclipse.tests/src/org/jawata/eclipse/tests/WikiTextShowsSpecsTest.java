@@ -1,51 +1,50 @@
 package org.jawata.eclipse.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.mylyn.wikitext.markdown.MarkdownLanguage;
-import org.eclipse.mylyn.wikitext.parser.MarkupParser;
-import org.eclipse.mylyn.wikitext.parser.builder.HtmlDocumentBuilder;
-import org.eclipse.mylyn.wikitext.parser.markup.MarkupLanguage;
-import org.eclipse.mylyn.wikitext.ui.WikiText;
+import org.eclipse.mylyn.internal.wikitext.ui.editor.MarkupEditor;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IEditorPart;
+import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.ide.IDE;
-import org.junit.jupiter.api.Tag;
+import org.jawata.eclipse.specs.SpecMarkdownEditor;
 import org.junit.jupiter.api.Test;
 import org.osgi.framework.FrameworkUtil;
 
 /**
- * Spec D6: a sprint document opens in Eclipse with its source and a preview, and the preview shows the specs' tables. The file is a
- * copy of the bundled spec-shaped fixture, and of a real spec when the build is given one with -Djawata.spec.md=PATH (the specs stay
- * out of this public repository). The preview's HTML is what the language WikiText maps the file name to renders for the preview tab.
+ * Spec D6: a sprint document opens in Eclipse with its source and a preview, and the preview shows the specs' tables (his option
+ * B: jawata's editor, WikiText's own reading the file with pipe tables). The file is a copy of the bundled spec-shaped fixture, and
+ * of a real spec when the build is given one with -Djawata.spec.md=PATH (the specs stay out of this public repository). The tables
+ * are counted in the HTML the Preview tab's browser shows — what the person sees, not a reconstruction of it.
  */
+@SuppressWarnings("restriction")
 public class WikiTextShowsSpecsTest {
-
-    private static final String MARKUP_EDITOR = "org.eclipse.mylyn.wikitext.ui.editor.markupEditor";
-
-    /** D6's table half: red until his decision (WikiText's Markdown renders no tables); the default build leaves it out, -Pd6-tables runs it. */
-    static final String TABLES = "d6-tables";
 
     @Test
     public void theFixtureOpensWithSourceAndPreview() throws Exception {
@@ -59,13 +58,11 @@ public class WikiTextShowsSpecsTest {
     }
 
     @Test
-    @Tag(TABLES)
     public void theFixturesTablesRenderInThePreview() throws Exception {
         tablesRender("spec-tables.md", fixture());
     }
 
     @Test
-    @Tag(TABLES)
     public void aRealSpecsTablesRenderInThePreview() throws Exception {
         Path spec = realSpec();
         tablesRender(spec.getFileName().toString(), Files.readString(spec, StandardCharsets.UTF_8));
@@ -84,45 +81,84 @@ public class WikiTextShowsSpecsTest {
 
     private void opensWithSourceAndPreview(String name, String text) throws Exception {
         IFile file = copyIntoWorkspace(name, text);
+        String editorId = open(file);
+        List<String> tabs = waitForTabs();
+        assertEquals(SpecMarkdownEditor.ID, editorId, name + " opens in jawata's Markdown editor by default");
+        assertTrue(tabs.stream().anyMatch(t -> t.contains("Source")) && tabs.stream().anyMatch(t -> t.contains("Preview")),
+            name + " shows a Source and a Preview tab; tabs seen: " + tabs);
+        assertNull(MarkupEditor.getMarkupLanguagePreference(file),
+            name + ": opening it stored no language on the file (nothing is written into the person's workspace)");
+    }
+
+    private void tablesRender(String name, String text) throws Exception {
+        int expected = countPipeTables(text);
+        assertTrue(expected > 0, name + " holds tables to render");
+        open(copyIntoWorkspace(name, text));
+        waitForTabs();
+        String html = previewHtmlShown(expected);
+        assertEquals(expected, count(html, "<table"), name + ": the preview shows " + count(html, "<table") + " of its " + expected + " tables");
+    }
+
+    /** Opens the file in a page with no other editor, the way a person double-clicks it; answers the editor's id. */
+    private static String open(IFile file) {
         AtomicReference<String> editorId = new AtomicReference<>();
-        AtomicReference<List<String>> tabs = new AtomicReference<>();
         Display.getDefault().syncExec(() -> {
             try {
                 // the Welcome page covers the editor area of a fresh workbench, as it does for a person on first start
                 var intro = PlatformUI.getWorkbench().getIntroManager().getIntro();
                 if (intro != null) { PlatformUI.getWorkbench().getIntroManager().closeIntro(intro); }
-                IEditorPart editor = IDE.openEditor(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage(), file);
+                IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+                page.closeAllEditors(false);
+                IEditorPart editor = IDE.openEditor(page, file);
                 editorId.set(editor.getSite().getId());
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             }
         });
-        // the editor builds its Source and Preview tabs once the workbench has laid it out: wait for them, up to ten seconds
-        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+        return editorId.get();
+    }
+
+    /** The editor builds its Source and Preview tabs once the workbench has laid it out: wait for them, up to ten seconds. */
+    private static List<String> waitForTabs() throws InterruptedException {
+        AtomicReference<List<String>> tabs = new AtomicReference<>(List.of());
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         do {
             Thread.sleep(200);
-            Display.getDefault().syncExec(() -> tabs.set(tabTexts(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell())));
-        } while (!(tabs.get().stream().anyMatch(t -> t.contains("Source")) && tabs.get().stream().anyMatch(t -> t.contains("Preview"))) && System.nanoTime() < deadline);
-        assertEquals(MARKUP_EDITOR, editorId.get(), name + " opens in WikiText's markup editor");
-        assertTrue(tabs.get().stream().anyMatch(t -> t.contains("Source")) && tabs.get().stream().anyMatch(t -> t.contains("Preview")),
-            name + " shows a Source and a Preview tab; tabs seen: " + tabs.get());
+            Display.getDefault().syncExec(() -> tabs.set(tabTexts(shell())));
+        } while (!(tabs.get().stream().anyMatch(t -> t.contains("Source")) && tabs.get().stream().anyMatch(t -> t.contains("Preview")))
+            && System.nanoTime() < deadline);
+        return tabs.get();
     }
 
-    private void tablesRender(String name, String text) {
-        int expected = countPipeTables(text);
-        String html = previewHtml(name, text);
-        int rendered = count(html, "<table");
-        assertTrue(expected > 0, name + " holds tables to render");
-        assertEquals(expected, rendered, name + ": the preview renders " + rendered + " of its " + expected + " tables");
+    /** Selects the Preview tab as a click does, then reads what its browser shows, waiting up to ten seconds for the tables. */
+    private static String previewHtmlShown(int tables) throws InterruptedException {
+        Display.getDefault().syncExec(() -> {
+            for (CTabFolder folder : folders(shell())) {
+                for (CTabItem item : folder.getItems()) {
+                    if (item.getText().contains("Preview")) {
+                        folder.setSelection(item);
+                        Event click = new Event();
+                        click.item = item;
+                        folder.notifyListeners(SWT.Selection, click);
+                    }
+                }
+            }
+        });
+        AtomicReference<String> html = new AtomicReference<>("");
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        do {
+            Thread.sleep(200);
+            Display.getDefault().syncExec(() -> {
+                Browser browser = browser(shell());
+                assertNotNull(browser, "the Preview tab holds a browser");
+                html.set(String.valueOf(browser.getText()));
+            });
+        } while (count(html.get(), "<table") < tables && System.nanoTime() < deadline);
+        return html.get();
     }
 
-    /** The HTML the language WikiText maps this file name to makes of the text: what the editor's preview tab shows. */
-    private static String previewHtml(String name, String text) {
-        MarkupLanguage language = WikiText.getMarkupLanguageForFilename(name);
-        assertTrue(language instanceof MarkdownLanguage, name + " is read as Markdown by WikiText; it maps to " + language);
-        StringWriter out = new StringWriter();
-        new MarkupParser(language, new HtmlDocumentBuilder(out)).parse(text);
-        return out.toString();
+    private static Shell shell() {
+        return PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell();
     }
 
     /** Tables written the way the specs write them: a header row followed by a |---| delimiter row. */
@@ -143,17 +179,30 @@ public class WikiTextShowsSpecsTest {
 
     private static List<String> tabTexts(Shell shell) {
         List<String> texts = new ArrayList<>();
-        collect(shell, texts);
+        for (CTabFolder folder : folders(shell)) {
+            for (CTabItem item : folder.getItems()) { texts.add(item.getText()); }
+        }
         return texts;
     }
 
-    private static void collect(Control control, List<String> texts) {
-        if (control instanceof CTabFolder folder) {
-            for (CTabItem item : folder.getItems()) { texts.add(item.getText()); }
-        }
+    private static List<CTabFolder> folders(Control control) {
+        List<CTabFolder> found = new ArrayList<>();
+        if (control instanceof CTabFolder folder) { found.add(folder); }
         if (control instanceof Composite composite) {
-            for (Control child : composite.getChildren()) { collect(child, texts); }
+            for (Control child : composite.getChildren()) { found.addAll(folders(child)); }
         }
+        return found;
+    }
+
+    private static Browser browser(Control control) {
+        if (control instanceof Browser browser) { return browser; }
+        if (control instanceof Composite composite) {
+            for (Control child : composite.getChildren()) {
+                Browser found = browser(child);
+                if (found != null) { return found; }
+            }
+        }
+        return null;
     }
 
     private static IFile copyIntoWorkspace(String name, String text) throws Exception {

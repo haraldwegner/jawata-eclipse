@@ -6,3 +6,18 @@ Bundle-Version: 0.1.0.qualifier
 Bundle-Vendor: Harald Wegner
 Bundle-RequiredExecutionEnvironment: JavaSE-21
 Automatic-Module-Name: org.jawata.eclipse
+Bundle-ActivationPolicy: lazy
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.core.resources,
+ org.eclipse.ui,
+ org.eclipse.ui.ide,
+ org.eclipse.ui.editors,
+ org.eclipse.ui.workbench.texteditor,
+ org.eclipse.jface.text,
+ org.eclipse.mylyn.wikitext,
+ org.eclipse.mylyn.wikitext.markdown,
+ org.eclipse.mylyn.wikitext.ui
+Import-Package: org.commonmark.ext.gfm.tables;version="[0.30.0,1.0.0)",
+ org.commonmark.node;version="[0.30.0,1.0.0)",
+ org.commonmark.parser;version="[0.30.0,1.0.0)"
+Export-Package: org.jawata.eclipse.specs

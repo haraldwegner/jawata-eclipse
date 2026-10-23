@@ -13,7 +13,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.mylyn.wikitext,
  org.eclipse.mylyn.wikitext.markdown,
  org.eclipse.mylyn.wikitext.ui,
- org.eclipse.terminal.view.core
+ org.eclipse.terminal.view.core,
+ org.jawata.eclipse
 Import-Package: org.junit.jupiter.api;version="[5.0.0,6.0.0)",
  org.osgi.framework,
  org.osgi.util.tracker

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <!-- Spec D6 (his option B): Markdown files open in WikiText's editor reading the specs' pipe tables. Bound to WikiText's own
+        Markdown content type, which is more specific than the parent type WikiText's editor is bound to, so this is the default for
+        .md; Open With still offers WikiText's editor. Nothing is registered for the md extension (WikiText keeps the first). -->
+   <extension point="org.eclipse.ui.editors">
+      <editor
+            id="org.jawata.eclipse.specs.markdownEditor"
+            name="Markdown (jawata, with tables)"
+            class="org.jawata.eclipse.specs.SpecMarkdownEditor"
+            contributorClass="org.eclipse.mylyn.internal.wikitext.ui.editor.MarkupEditorActionBarContributor"
+            default="true"
+            symbolicFontName="org.eclipse.mylyn.wikitext.ui.presentation.textFont">
+         <contentTypeBinding contentTypeId="org.eclipse.mylyn.wikitext.markdown"/>
+      </editor>
+   </extension>
+</plugin>

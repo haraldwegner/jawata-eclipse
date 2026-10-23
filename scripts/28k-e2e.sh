@@ -121,7 +121,7 @@ for pkg in java rcp; do
     # D6/D7 inside this download: Tycho installs the test bundle and its harness on top of the installation above (p2 director, the
     # download's own profile) and runs the PDE tests in it; the components under test stay the download's own bundles.
     tests_out="$run/pde-tests.out"
-    (cd "$here" && xvfb-run -a mvn -B verify -pl releng/org.jawata.eclipse.target,tests/org.jawata.eclipse.tests -am \
+    (cd "$here" && xvfb-run -a mvn -B verify -pl releng/org.jawata.eclipse.target,bundles/org.jawata.eclipse,tests/org.jawata.eclipse.tests -am \
         -Djawata.download="$eclipse" -Djawata.profile="epp.package.$pkg" -Djawata.product="org.eclipse.epp.package.$pkg.product" \
         ${JAWATA_SPEC:+-Djawata.spec.md="$JAWATA_SPEC"}) > "$tests_out" 2>&1
     tests_rc=$?
@@ -129,9 +129,18 @@ for pkg in java rcp; do
     ran="$(echo "$summary" | sed -E 's/^Tests run: ([0-9]+).*Skipped: ([0-9]+)$/\1 \2/')"
     if [ "$tests_rc" = 0 ] && grep -q -- "-install $eclipse " "$tests_out" \
        && [ -n "$ran" ] && [ $(( ${ran% *} - ${ran#* } )) -ge 2 ] && echo "$summary" | grep -q 'Failures: 0, Errors: 0'; then
-        ok "D6/D7 $pkg: the PDE tests ran inside this download ($summary): a spec opens with source and preview, the Terminal runs bash"
+        ok "D6/D7 $pkg: the PDE tests ran inside this download ($summary): a .md opens in jawata's editor with source and a preview showing every table, the Terminal runs bash"
     else
         fail "D6/D7 $pkg: the PDE tests did not pass inside this download (exit $tests_rc, ${summary:-no test summary}); output: $tests_out"
+    fi
+    # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
+    # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
+    log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"
+    noise="$( [ -f "$log" ] && grep -E 'is ignored|already registered|at org\.jawata\.' "$log" | head -3 )"
+    if [ -n "$tests_out" ] && grep -q -- "-install $eclipse " "$tests_out" && [ -z "$noise" ]; then
+        ok "D6 $pkg: Eclipse's log in the test run has no rejected registration and no exception from jawata's code"
+    else
+        fail "D6 $pkg: Eclipse's log in the test run: ${noise:-(the tests did not run in this download)}; log: $log"
     fi
 done
 
