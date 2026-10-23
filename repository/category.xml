@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature id="org.jawata.eclipse.feature">
+      <category name="jawata"/>
+   </feature>
+   <category-def name="jawata" label="jawata"/>
+</site>

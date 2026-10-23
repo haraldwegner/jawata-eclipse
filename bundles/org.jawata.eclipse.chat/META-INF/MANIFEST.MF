@@ -1,0 +1,8 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: jawata chat
+Bundle-SymbolicName: org.jawata.eclipse.chat;singleton:=true
+Bundle-Version: 0.1.0.qualifier
+Bundle-Vendor: Harald Wegner
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: org.jawata.eclipse.chat
