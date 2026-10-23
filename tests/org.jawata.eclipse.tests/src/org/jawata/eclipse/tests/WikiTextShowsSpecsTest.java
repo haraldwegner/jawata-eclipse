@@ -2,6 +2,7 @@ package org.jawata.eclipse.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -54,7 +55,7 @@ public class WikiTextShowsSpecsTest {
     @Test
     public void aRealSpecOpensWithSourceAndPreview() throws Exception {
         Path spec = realSpec();
-        if (spec != null) { opensWithSourceAndPreview(spec.getFileName().toString(), Files.readString(spec, StandardCharsets.UTF_8)); }
+        opensWithSourceAndPreview(spec.getFileName().toString(), Files.readString(spec, StandardCharsets.UTF_8));
     }
 
     @Test
@@ -67,20 +68,17 @@ public class WikiTextShowsSpecsTest {
     @Tag(TABLES)
     public void aRealSpecsTablesRenderInThePreview() throws Exception {
         Path spec = realSpec();
-        if (spec != null) { tablesRender(spec.getFileName().toString(), Files.readString(spec, StandardCharsets.UTF_8)); }
+        tablesRender(spec.getFileName().toString(), Files.readString(spec, StandardCharsets.UTF_8));
     }
 
     private static String fixture() throws Exception {
         return new String(resource("resources/spec-tables.md"), StandardCharsets.UTF_8);
     }
 
-    /** The real spec the build was given (-Djawata.spec.md=PATH, profile real-spec), or null: the fixture then stands for it. */
+    /** The real spec the build was given (-Djawata.spec.md=PATH, profile real-spec); without one the test is skipped, not passed. */
     private static Path realSpec() {
         String path = System.getProperty("jawata.spec.md", "");
-        if (path.isBlank()) {
-            System.out.println("D6: no real spec given (-Djawata.spec.md); the fixture test stands for it");
-            return null;
-        }
+        assumeFalse(path.isBlank(), "D6: no real spec given (-Djawata.spec.md); the fixture test stands for it");
         return Path.of(path);
     }
 
