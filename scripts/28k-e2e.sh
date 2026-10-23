@@ -5,7 +5,9 @@
 # p2 director), and Eclipse started from each, in a virtual screen, runs with the plug-in present: the
 # workbench bundle reaches ACTIVE, both org.jawata bundles are resolved, and so are the two Eclipse bundles
 # spec D6 and D7 stand on (WikiText's Markdown editor, the Terminal's local shell) — the PDE tests prove
-# their behaviour in Tycho's test runtime, which carries the same versions as both downloads.
+# their behaviour INSIDE each download: after the start check, the PDE tests run in that same installation (Tycho's p2Installed
+# mode adds only the test bundle and its harness), so the preview and the terminal are proven where a user installs the plug-in.
+# JAWATA_SPEC=<a spec .md> also opens a real spec (the specs are not in this repository).
 # R8: the update site ships none of JDT, LTK, SWT, JFace, an slf4j provider, org.jawata.jdtpatch or
 # org.jawata.resident (contract §16 row 1). R9, engine side: no jawata-mcp build file names this repository.
 # The commit hook: installed in this clone, and its own test passes.
@@ -115,6 +117,21 @@ for pkg in java rcp; do
         ok "P13 $pkg: Eclipse starts in Xvfb, the workbench is ACTIVE; both org.jawata bundles, WikiText's Markdown editor and the Terminal's local shell are resolved"
     else
         fail "P13 $pkg: Eclipse did not start with the plug-in present"
+    fi
+    # D6/D7 inside this download: Tycho installs the test bundle and its harness on top of the installation above (p2 director, the
+    # download's own profile) and runs the PDE tests in it; the components under test stay the download's own bundles.
+    tests_out="$run/pde-tests.out"
+    (cd "$here" && xvfb-run -a mvn -B verify -pl releng/org.jawata.eclipse.target,tests/org.jawata.eclipse.tests -am \
+        -Djawata.download="$eclipse" -Djawata.profile="epp.package.$pkg" -Djawata.product="org.eclipse.epp.package.$pkg.product" \
+        ${JAWATA_SPEC:+-Djawata.spec.md="$JAWATA_SPEC"}) > "$tests_out" 2>&1
+    tests_rc=$?
+    summary="$(grep -E '^Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+$' "$tests_out" | tail -1)"
+    ran="$(echo "$summary" | sed -E 's/^Tests run: ([0-9]+).*Skipped: ([0-9]+)$/\1 \2/')"
+    if [ "$tests_rc" = 0 ] && grep -q -- "-install $eclipse " "$tests_out" \
+       && [ -n "$ran" ] && [ $(( ${ran% *} - ${ran#* } )) -ge 2 ] && echo "$summary" | grep -q 'Failures: 0, Errors: 0'; then
+        ok "D6/D7 $pkg: the PDE tests ran inside this download ($summary): a spec opens with source and preview, the Terminal runs bash"
+    else
+        fail "D6/D7 $pkg: the PDE tests did not pass inside this download (exit $tests_rc, ${summary:-no test summary}); output: $tests_out"
     fi
 done
 

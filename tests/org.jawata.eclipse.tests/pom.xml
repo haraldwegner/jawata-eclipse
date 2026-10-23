@@ -70,6 +70,28 @@
         </plugins>
       </build>
     </profile>
+    <!-- the same tests inside a real Eclipse download (plan Stage 13, D6/D7): scripts/28k-e2e.sh installs the update site into a fresh
+         copy, then runs this module with -Djawata.download=<its eclipse dir> -Djawata.profile=<its p2 profile> -Djawata.product=<its product>;
+         Tycho installs the test bundle and its harness on top of that installation with the p2 director and starts it -->
+    <profile>
+      <id>in-download</id>
+      <activation><property><name>jawata.download</name></property></activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.eclipse.tycho</groupId>
+            <artifactId>tycho-surefire-plugin</artifactId>
+            <version>${tycho.version}</version>
+            <configuration>
+              <testRuntime>p2Installed</testRuntime>
+              <work>${jawata.download}</work>
+              <profileName>${jawata.profile}</profileName>
+              <product>${jawata.product}</product>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>d6-tables</id>
       <properties><d6.excludedGroups>no-group-left-out</d6.excludedGroups></properties>
