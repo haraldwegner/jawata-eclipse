@@ -2,9 +2,7 @@ package org.jawata.eclipse.chat;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.swt.SWT;
@@ -14,70 +12,118 @@ import org.eclipse.swt.browser.ProgressAdapter;
 import org.eclipse.swt.browser.ProgressEvent;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 
 /**
- * The chat's page inside Eclipse (plan Stage 21, step 21.2): the page this bundle ships ({@code page/index.html}, built by
- * {@code scripts/build-chat-page.sh}) shown in an SWT Browser, and the one bridge between it and Java. The page speaks to its host
- * through {@code window.jawataHost.send(intent)}; this composite defines that function, after the page has loaded, over a Browser
- * function that hands each intent, as JSON text, to whoever listens. The first intent a page sends is {@code ready} with the view
- * contract number it was built against. A composite is the reusable part: a view shows it now, an editor-area page can later.
+ * The chat's page inside Eclipse (plan Stage 21): a page ({@code page/index.html}, built by {@code scripts/build-chat-page.sh}) shown
+ * in an SWT Browser, and the one bridge between it and Java, two functions and nothing else. The page calls
+ * {@code jawataHostCall(text)}, which runs the handler set with {@link #setHandler} on the user interface thread and gives the page its
+ * answer at once; Java calls {@link #deliver}, which runs {@code jawataHostDeliver(text)} in the page. Both carry JSON text and this
+ * class reads none of it. A composite is the reusable part: a view shows it now, an editor-area page can later.
  */
 public final class ChatPage extends Composite {
 
-    /** What the page's own scripts wait for: the host function, then the event that tells the page to look for it. */
-    private static final String HOST_SCRIPT = "window.jawataHost = { send: function (intent) { return jawataHostSend(JSON.stringify(intent)); } };"
-        + " window.dispatchEvent(new Event('jawata-host-ready'));";
-
     private final Browser browser;
-    private final List<Consumer<String>> listeners = new CopyOnWriteArrayList<>();
+    private volatile Function<String, String> handler = text -> null;
     private volatile boolean loaded;
 
     /**
+     * Shows the page this bundle ships.
+     *
      * @param parent where the page is shown
      * @throws IllegalStateException if the bundle holds no page, which means the build skipped {@code scripts/build-chat-page.sh}
      */
     public ChatPage(Composite parent) {
+        this(parent, pageUrl());
+    }
+
+    /**
+     * Shows another page over the same bridge, for a test.
+     *
+     * @param parent where the page is shown
+     * @param url the page's address
+     */
+    public ChatPage(Composite parent, String url) {
         super(parent, SWT.NONE);
         setLayout(new FillLayout());
         browser = new Browser(this, SWT.NONE);
-        new BrowserFunction(browser, "jawataHostSend") {
+        new BrowserFunction(browser, "jawataHostCall") {
             @Override
             public Object function(Object[] arguments) {
-                String intent = String.valueOf(arguments[0]);
-                for (Consumer<String> listener : listeners) {
-                    listener.accept(intent);
-                }
-                return null;
+                return handler.apply(String.valueOf(arguments[0]));
             }
         };
         browser.addProgressListener(new ProgressAdapter() {
             @Override
             public void completed(ProgressEvent event) {
                 loaded = true;
-                browser.execute(HOST_SCRIPT);
+                browser.execute("window.dispatchEvent(new Event('jawata-host-ready'));");
             }
         });
-        browser.setUrl(pageUrl());
+        browser.setUrl(url);
     }
 
     /**
-     * Asks to be handed every intent the page sends.
+     * Sets who answers the page's calls.
      *
-     * @param listener receives one intent as JSON text, on the user interface thread
+     * @param answer receives one call as JSON text, on the user interface thread, and returns the answer as JSON text, or null for none
      */
-    public void onIntent(Consumer<String> listener) {
-        listeners.add(listener);
+    public void setHandler(Function<String, String> answer) {
+        this.handler = answer;
     }
 
     /**
-     * Whether the page has finished loading and the host function is defined in it.
+     * Whether the page has finished loading.
      *
      * @return true once the page's load completed
      */
     public boolean isLoaded() {
         return loaded;
+    }
+
+    /**
+     * Tells the page something. May be called from any thread.
+     *
+     * @param message one event as JSON text
+     */
+    public void deliver(String message) {
+        Display display = getDisplay();
+        display.asyncExec(() -> {
+            if (!isDisposed()) {
+                browser.execute("window.jawataHostDeliver(" + quote(message) + ");");
+            }
+        });
+    }
+
+    /**
+     * Text as a script string literal.
+     *
+     * @param text any text
+     * @return the literal, quotes included
+     */
+    public static String quote(String text) {
+        StringBuilder literal = new StringBuilder(text.length() + 2).append('"');
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case '"' -> literal.append("\\\"");
+                case '\\' -> literal.append("\\\\");
+                case '\n' -> literal.append("\\n");
+                case '\r' -> literal.append("\\r");
+                case ' ' -> literal.append("\\u2028");
+                case ' ' -> literal.append("\\u2029");
+                default -> {
+                    if (c < 0x20) {
+                        literal.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        literal.append(c);
+                    }
+                }
+            }
+        }
+        return literal.append('"').toString();
     }
 
     private static String pageUrl() {

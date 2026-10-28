@@ -12,8 +12,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -58,13 +59,15 @@ public final class AgentRelay implements AutoCloseable {
     /**
      * Starts the agent's program.
      *
+     * @param agentId the id the core gave this agent, which it uses in every later call: the core needs its handle before the program
+     *            has started, so it names the agent and the relay keeps that name
      * @param command the program and its arguments, as the person configured them; a bare program name is looked for on the path
      * @param environment variables added to the environment this program runs in
      * @param workingFolder where the agent works, or null for the folder Eclipse runs in
-     * @return the id the core uses for this agent in every later call
+     * @return the id the agent was started under, the same as the one given
      * @throws IOException if the program cannot be started
      */
-    public String start(List<String> command, Map<String, String> environment, Path workingFolder) throws IOException {
+    public String start(String agentId, List<String> command, Map<String, String> environment, Path workingFolder) throws IOException {
         if (command.isEmpty()) {
             throw new IOException("No agent command is set.");
         }
@@ -73,12 +76,14 @@ public final class AgentRelay implements AutoCloseable {
         if (workingFolder != null) {
             builder.directory(workingFolder.toFile());
         }
+        if (agents.containsKey(agentId)) {
+            throw new IOException("An agent called " + agentId + " is already running.");
+        }
         Process process = builder.start();
-        String id = UUID.randomUUID().toString();
-        Running running = new Running(id, process);
-        agents.put(id, running);
+        Running running = new Running(agentId, process);
+        agents.put(agentId, running);
         running.begin();
-        return id;
+        return agentId;
     }
 
     /**
@@ -91,6 +96,7 @@ public final class AgentRelay implements AutoCloseable {
     public boolean send(String agentId, String message) {
         Running running = agents.get(agentId);
         if (running == null) {
+            listener.onError(agentId, "The agent is not running.");
             return false;
         }
         if (message.indexOf('\n') >= 0 || message.indexOf('\r') >= 0) {
@@ -178,6 +184,7 @@ public final class AgentRelay implements AutoCloseable {
         private final String id;
         private final Process process;
         private final OutputStream toAgent;
+        private final BlockingQueue<String> outgoing = new LinkedBlockingQueue<>();
         private volatile boolean killed;
 
         Running(String id, Process process) {
@@ -189,10 +196,13 @@ public final class AgentRelay implements AutoCloseable {
         void begin() {
             Thread messages = pump("messages", process.getInputStream(), listener::onMessage);
             Thread notes = pump("stderr", process.getErrorStream(), (agent, line) -> log.accept("[agent " + agent + "] " + line));
+            Thread writing = writer();
+            writing.start();
             Thread ending = new Thread(() -> {
                 Integer code = null;
                 try {
                     code = process.waitFor();
+                    writing.interrupt();
                     messages.join();
                     notes.join();
                 } catch (InterruptedException interrupted) {
@@ -223,17 +233,27 @@ public final class AgentRelay implements AutoCloseable {
             return thread;
         }
 
+        /** Queues one message for the writer thread: the caller is the user interface thread, which a full pipe must not block. */
         boolean write(String message) {
-            synchronized (toAgent) {
+            return outgoing.offer(message);
+        }
+
+        private Thread writer() {
+            Thread thread = new Thread(() -> {
                 try {
-                    toAgent.write((message + "\n").getBytes(StandardCharsets.UTF_8));
-                    toAgent.flush();
-                    return true;
+                    while (true) {
+                        byte[] line = (outgoing.take() + "\n").getBytes(StandardCharsets.UTF_8);
+                        toAgent.write(line);
+                        toAgent.flush();
+                    }
+                } catch (InterruptedException ended) {
+                    Thread.currentThread().interrupt();
                 } catch (IOException failed) {
                     listener.onError(id, "The agent could not be written to: " + failed.getMessage());
-                    return false;
                 }
-            }
+            }, "jawata chat agent " + id + " writer");
+            thread.setDaemon(true);
+            return thread;
         }
     }
 }

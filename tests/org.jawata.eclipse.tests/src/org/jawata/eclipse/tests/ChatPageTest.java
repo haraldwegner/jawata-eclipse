@@ -3,16 +3,20 @@ package org.jawata.eclipse.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
+import org.jawata.eclipse.chat.ChatHost;
 import org.jawata.eclipse.chat.ChatPage;
 import org.junit.jupiter.api.Test;
 import org.osgi.framework.FrameworkUtil;
@@ -21,11 +25,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Plan Stage 21, step 21.2: the chat page this plug-in ships loads in a real SWT Browser, finds the host function the composite
- * defines, and says ready with the view contract number it was built against (the number {@code scripts/build-chat-page.sh} read
- * from chat-core into {@code page/view-contract.json}). The page is the real built one, not a stand-in.
+ * Plan Stage 21, steps 21.2 and 21.4: the chat page this plug-in ships loads in a real SWT Browser and starts the chat on the host
+ * bridge: it asks Java for its configuration, mounts the view, and says it started with the view contract number it was built against
+ * (the number {@code scripts/build-chat-page.sh} read from chat-core into {@code page/view-contract.json}). The page is the real built
+ * one and Java's side is the real {@link ChatHost}; only the setup is the test's.
  */
 public class ChatPageTest {
+
+    private final ObjectMapper json = new ObjectMapper();
+    private final List<String> calls = new CopyOnWriteArrayList<>();
 
     private static int contractTheBuildRecorded() throws Exception {
         try (InputStream in = FrameworkUtil.getBundle(ChatPage.class).getEntry("page/view-contract.json").openStream()) {
@@ -33,13 +41,27 @@ public class ChatPageTest {
         }
     }
 
+    /** The first call the page made with this op, and where in the order it came. */
+    private int positionOf(String op) {
+        for (int i = 0; i < calls.size(); i++) {
+            try {
+                if (op.equals(json.readTree(calls.get(i)).path("op").asText())) {
+                    return i;
+                }
+            } catch (IOException unreadable) {
+                return -1;
+            }
+        }
+        return -1;
+    }
+
     private static String pageState(ChatPage page) {
         StringBuilder out = new StringBuilder();
         Display.getDefault().syncExec(() -> {
             Browser browser = (Browser) page.getChildren()[0];
             out.append("loaded=").append(page.isLoaded()).append(" url=").append(browser.getUrl());
-            for (String probe : new String[] {"typeof window.jawataChatPage", "typeof window.jawataHost", "document.getElementById('root').childElementCount",
-                "typeof jawataHostSend", "document.readyState"}) {
+            for (String probe : new String[] {"typeof window.jawataChatPage", "document.getElementById('root').childElementCount",
+                "typeof jawataHostCall", "document.readyState"}) {
                 try {
                     out.append(" | ").append(probe).append(" = ").append(browser.evaluate("return " + probe + ";"));
                 } catch (RuntimeException failed) {
@@ -50,36 +72,51 @@ public class ChatPageTest {
         return out.toString();
     }
 
+    private static Object onThread(Supplier<Object> read) {
+        AtomicReference<Object> value = new AtomicReference<>();
+        Display.getDefault().syncExec(() -> value.set(read.get()));
+        return value.get();
+    }
+
     @Test
-    public void thePageLoadsInTheBrowserAndSaysReadyWithTheContractItWasBuiltAgainst() throws Exception {
+    public void thePageAsksForItsConfigurationMountsTheViewAndSaysItStartedWithTheContractItWasBuiltAgainst() throws Exception {
         int recorded = contractTheBuildRecorded();
         assertTrue(recorded > 0, "the build recorded the contract number the page speaks: " + recorded);
-        List<String> intents = new CopyOnWriteArrayList<>();
         AtomicReference<Shell> shell = new AtomicReference<>();
         AtomicReference<ChatPage> page = new AtomicReference<>();
+        AtomicReference<ChatHost> host = new AtomicReference<>();
         Display.getDefault().syncExec(() -> {
             Shell created = new Shell(Display.getDefault(), SWT.SHELL_TRIM);
             created.setLayout(new FillLayout());
             ChatPage shown = new ChatPage(created);
+            ChatHost serving = new ChatHost(shown, FixedChatSettings.withoutAgent(), line -> { });
+            shown.setHandler(call -> {
+                calls.add(call);
+                return serving.handle(call);
+            });
             page.set(shown);
-            shown.onIntent(intents::add);
+            host.set(serving);
             created.setSize(900, 700);
             created.open();
             shell.set(created);
         });
         try {
-            String first;
             try {
-                first = Await.found("the page's first intent", () -> intents.stream().findFirst());
+                Await.found("the page's started call", () -> positionOf("started") >= 0 ? Optional.of(calls) : Optional.empty());
             } catch (AssertionError silent) {
-                throw new AssertionError(silent.getMessage() + " | " + pageState(page.get()), silent);
+                throw new AssertionError(silent.getMessage() + " | calls: " + calls + " | " + pageState(page.get()), silent);
             }
 
-            JsonNode intent = new ObjectMapper().readTree(first);
-            assertEquals("ready", intent.path("type").asText(), "the first thing a page says is ready: " + first);
-            assertEquals(recorded, intent.path("contractVersion").asInt(-1), "carrying the contract it was built against: " + first);
+            JsonNode started = json.readTree(calls.get(positionOf("started")));
+            assertEquals(recorded, started.path("contract").asInt(-1), "it carries the contract it was built against: " + started);
+            assertTrue(positionOf("config") >= 0 && positionOf("config") < positionOf("started"), "it asked for its configuration before it started: " + calls);
+            Object mounted = onThread(() -> ((Browser) page.get().getChildren()[0]).evaluate("return document.getElementById('root').childElementCount;"));
+            assertTrue(((Number) mounted).intValue() > 0, "the view is mounted in the page: " + pageState(page.get()));
         } finally {
-            Display.getDefault().syncExec(() -> shell.get().dispose());
+            Display.getDefault().syncExec(() -> {
+                host.get().close();
+                shell.get().dispose();
+            });
         }
     }
 }

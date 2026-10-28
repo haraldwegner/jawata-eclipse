@@ -1,11 +1,16 @@
 package org.jawata.eclipse.chat;
 
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.Status;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.part.ViewPart;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.FrameworkUtil;
 
 /**
  * The chat as a view (plan Stage 21; the editor-area placement is Stage 23): the person opens it from Window > Show View, and it
- * shows one {@link ChatPage}. It holds nothing else, so the page is the one place the chat lives.
+ * shows one {@link ChatPage} served by one {@link ChatHost}. It holds nothing else, so the page is the one place the chat lives.
  */
 public final class ChatView extends ViewPart {
 
@@ -13,10 +18,12 @@ public final class ChatView extends ViewPart {
     public static final String ID = "org.jawata.eclipse.chat.view";
 
     private ChatPage page;
+    private ChatHost host;
 
     @Override
     public void createPartControl(Composite parent) {
         page = new ChatPage(parent);
+        host = new ChatHost(page, new PreferencesChatSettings(), ChatView::log);
     }
 
     @Override
@@ -26,6 +33,14 @@ public final class ChatView extends ViewPart {
         }
     }
 
+    @Override
+    public void dispose() {
+        if (host != null) {
+            host.close();
+        }
+        super.dispose();
+    }
+
     /**
      * The page this view shows.
      *
@@ -33,5 +48,10 @@ public final class ChatView extends ViewPart {
      */
     public ChatPage page() {
         return page;
+    }
+
+    private static void log(String message) {
+        Bundle bundle = FrameworkUtil.getBundle(ChatView.class);
+        Platform.getLog(bundle).log(new Status(IStatus.INFO, bundle.getSymbolicName(), message));
     }
 }

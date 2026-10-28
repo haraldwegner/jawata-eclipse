@@ -12,8 +12,9 @@
 #      chat.js.LICENSE.txt: the bundled libraries) and view-contract.json (the contract number the page speaks, read from chat-core's
 #      compiled view contract) into the page folder;
 #   5. prints one summary line.
-# The entry is a placeholder: the VS Code webview entry calls acquireVsCodeApi, so the page mounts the chat view on a bare relay and
-# exposes the window.jawataHost hook where the host adapter of step 21.4 plugs in (documented at the top of scripts/chat-page/entry.js).
+# The page is the chat core and view on the Eclipse host adapter (scripts/chat-page/host-adapter.js, step 21.4); the VS Code webview entry
+# cannot be used, it calls acquireVsCodeApi. A second bundle, scripts/chat-page/conformance.js, holds chat-core's host-port checks run
+# against the adapter; it is written to .work/chat-conformance/ and is not part of the plug-in.
 #
 # Run it BEFORE `mvn verify` (like scripts/fetch-engine.sh); it is not part of the Tycho build. Needs: node 20+, npm, git, and the network
 # when the chat checkout's packages or webpack are not installed yet. Idempotent. Tested by scripts/test-build-chat-page.sh.
@@ -74,7 +75,7 @@ if [ ! -d "$scratch/node_modules/webpack" ] || [ "$(cat "$scratch/install.stamp"
         || { tail -20 "$scratch/install.log" >&2; die "npm install in $scratch failed (full log: $scratch/install.log)"; }
     echo "$stamp" > "$scratch/install.stamp"
 fi
-cp "$here/scripts/chat-page/entry.js" "$here/scripts/chat-page/webpack.config.cjs" "$scratch/"
+cp "$here/scripts/chat-page/"*.js "$here/scripts/chat-page/webpack.config.cjs" "$scratch/"
 rm -rf "$scratch/out"
 (cd "$scratch" && node node_modules/webpack/bin/webpack.js --config webpack.config.cjs --json stats.json > webpack.log 2>&1) \
     || { tail -30 "$scratch/webpack.log" >&2; die "webpack failed (full log: $scratch/webpack.log)"; }
@@ -88,6 +89,10 @@ rm -rf "$page"
 mkdir -p "$page"
 cp "$here/scripts/chat-page/index.html" "$page/index.html"
 cp "$scratch/out/chat.js" "$page/chat.js"
+# the host-port conformance bundle stays OUT of the plug-in: a test loads it from here
+conformance="$here/.work/chat-conformance"
+rm -rf "$conformance"; mkdir -p "$conformance"
+cp "$here/scripts/chat-page/conformance.html" "$scratch/out/conformance.js" "$conformance/"
 [ -f "$scratch/out/chat.js.LICENSE.txt" ] && cp "$scratch/out/chat.js.LICENSE.txt" "$page/chat.js.LICENSE.txt"
 {
     echo "The jawata chat page: jawata's own code (@jawata/chat-core, @jawata/chat-view, @jawata/acp-contract) is licensed AGPL-3.0-only."

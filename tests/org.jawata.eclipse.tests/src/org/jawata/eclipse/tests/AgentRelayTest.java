@@ -130,7 +130,7 @@ public class AgentRelayTest {
 
     @Test
     public void theRecordedAgentAnswersTheRecordedRequestsThroughTheRelay() throws Exception {
-        String agent = relay.start(replayCommand(), Map.of(), null);
+        String agent = relay.start("agent_1", replayCommand(), Map.of(), null);
         List<String> requests = recordedRequests();
 
         assertTrue(relay.send(agent, requests.get(0)), "the first request, initialize, is written");
@@ -147,7 +147,7 @@ public class AgentRelayTest {
     @Test
     public void everyMessageIsHandedOnBeforeTheEndIsReportedAndStderrGoesToTheLog() throws Exception {
         String script = "for (let i = 1; i <= 2000; i++) { console.log(JSON.stringify({n: i})); } console.error('about to stop'); process.exitCode = 3;";
-        relay.start(List.of("node", "-e", script), Map.of(), null);
+        relay.start("agent_1", List.of("node", "-e", script), Map.of(), null);
 
         Await.until(() -> ended);
 
@@ -165,7 +165,7 @@ public class AgentRelayTest {
         Path folder = Files.createTempDirectory("agent-relay");
         try {
             String script = "console.log(JSON.stringify({cwd: process.cwd(), env: process.env.JAWATA_RELAY_TEST})); setInterval(() => {}, 1000);";
-            String agent = relay.start(List.of("node", "-e", script), Map.of("JAWATA_RELAY_TEST", "yes"), folder);
+            String agent = relay.start("agent_1", List.of("node", "-e", script), Map.of("JAWATA_RELAY_TEST", "yes"), folder);
 
             String first = Await.found("the program's first line", () -> messages.stream().findFirst());
             JsonNode seen = json.readTree(first);
@@ -185,7 +185,7 @@ public class AgentRelayTest {
 
     @Test
     public void aMessageWithALineBreakIsRefusedBecauseOneLineIsOneMessage() throws Exception {
-        String agent = relay.start(List.of("node", "-e", "setInterval(() => {}, 1000);"), Map.of(), null);
+        String agent = relay.start("agent_1", List.of("node", "-e", "setInterval(() => {}, 1000);"), Map.of(), null);
 
         assertFalse(relay.send(agent, "{\"a\":\n1}"), "refused");
 
@@ -195,8 +195,8 @@ public class AgentRelayTest {
 
     @Test
     public void aProgramThatDoesNotExistFailsToStartAndTheCommandIsNeverEmpty() {
-        assertThrows(IOException.class, () -> relay.start(List.of("jawata-no-such-agent-program"), Map.of(), null));
-        assertThrows(IOException.class, () -> relay.start(List.of(), Map.of(), null));
+        assertThrows(IOException.class, () -> relay.start("agent_1", List.of("jawata-no-such-agent-program"), Map.of(), null));
+        assertThrows(IOException.class, () -> relay.start("agent_2", List.of(), Map.of(), null));
     }
 
     @Test

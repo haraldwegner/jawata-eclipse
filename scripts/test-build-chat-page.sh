@@ -50,6 +50,22 @@ else
     fail "the html does not load $(basename "${js:-none}") or has no root element"
 fi
 [ -n "$js" ] && grep -q 'session-banner' "$js" && ok "the js holds the chat view" || fail "the js does not hold the chat view"
+if [ -n "$js" ] && grep -q 'jawataHostCall' "$js" && grep -q 'jawataHostDeliver' "$js" && ! grep -q 'acquireVsCodeApi()' "$js"; then
+    ok "the js is the chat on the Eclipse host adapter: it speaks jawataHostCall and jawataHostDeliver and does not call acquireVsCodeApi"
+else
+    fail "the js is not the chat on the Eclipse host adapter"
+fi
+conformance="$copy/.work/chat-conformance"
+if [ -s "$conformance/conformance.js" ] && [ -s "$conformance/conformance.html" ] && grep -q 'runConformance' "$conformance/conformance.js"; then
+    ok "the host-port conformance bundle is written to .work/chat-conformance/"
+else
+    fail "no conformance bundle in .work/chat-conformance/"
+fi
+if ! ls "$page" | grep -qi conformance && ! grep -q 'runConformance' "$js"; then
+    ok "and none of it is in the page folder that ships"
+else
+    fail "conformance code reached the page folder that ships"
+fi
 lic="$(ls "$page" 2>/dev/null | grep -i 'licen[sc]e' | head -20)"
 if [ -s "$page/LICENSE.txt" ] && grep -q 'AFFERO' "$page/LICENSE.txt" && [ -s "$page/THIRD-PARTY-LICENSES.txt" ] && grep -qi 'react' "$page/THIRD-PARTY-LICENSES.txt"; then
     ok "page/ holds jawata's AGPL text and the third-party licences (react among them): $(echo $lic)"
