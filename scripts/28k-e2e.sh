@@ -320,10 +320,22 @@ for pkg in java rcp; do
         *) fail "D2 $pkg: the fixtures did not have the real natures this download should carry (wanted $want; ${natures:-the test printed none})" ;;
     esac
     # P17 (plan Stage 17, spec D5): in this download the preference page lists every setting of the engine, and a value typed on it
-    # and saved shows in the next health_check answer of a client that connects with no key (JawataPreferencePageTest, 3 tests)
+    # and saved shows in the next health_check answer of a client that connects with no key (JawataPreferencePageTest). The two tests
+    # that prove those two promises must each be in the report and passed: a passed testcase is a self-closed element, a skipped or
+    # failed one has a child, so deleting or disabling either test turns this check red instead of leaving a smaller green count.
     prefs="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.JawataPreferencePageTest' "$tests_out" | head -1)"
+    prefs_xml="$here/tests/org.jawata.eclipse.tests/target/surefire-reports/TEST-org.jawata.eclipse.tests.JawataPreferencePageTest.xml"
+    prefs_unproved=""
+    for proving in aValueTypedOnThePageIsWhatTheEngineReadsAndShowsInAToolAnswer everySettingTheEngineReadsIsOnThePage; do
+        grep -q "<testcase name=\"$proving\"[^>]*/>" "$prefs_xml" 2>/dev/null || prefs_unproved="$prefs_unproved $proving"
+    done
     case "$prefs" in
-        "Tests run: "[0-9]*", Failures: 0, Errors: 0"*) ok "P17 $pkg: the preference page shows every setting of the engine, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (${prefs%%,*})" ;;
+        "Tests run: "[0-9]*", Failures: 0, Errors: 0"*)
+            if [ -z "$prefs_unproved" ]; then
+                ok "P17 $pkg: the preference page shows every setting of the engine, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (${prefs%%,*}; the two proving tests are in the report and passed)"
+            else
+                fail "P17 $pkg: the preference page tests ran but these did not pass or are missing:$prefs_unproved"
+            fi ;;
         *) fail "P17 $pkg: the preference page tests did not pass in this download (${prefs:-they did not run})" ;;
     esac
     # P18 (plan Stage 18, W3): in this download a rename a client asks for over MCP lands as one step on Edit > Undo and one Undo

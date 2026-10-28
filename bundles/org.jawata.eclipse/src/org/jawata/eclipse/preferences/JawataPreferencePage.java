@@ -37,8 +37,8 @@ public final class JawataPreferencePage extends PreferencePage implements IWorkb
 
     @Override
     public void init(IWorkbench workbench) {
-        setDescription("An empty field means the setting is not set, and the default shown under it applies. Some settings are read "
-            + "only when Eclipse starts; restart Eclipse for those.");
+        setDescription("An empty field means the setting is not set here, and the default shown under it applies unless Eclipse was started "
+            + "with that setting (the line under the field says so). Some settings are read only when Eclipse starts; restart Eclipse for those.");
     }
 
     @Override
