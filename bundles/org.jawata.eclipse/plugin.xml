@@ -20,4 +20,12 @@
    <extension point="org.eclipse.ui.startup">
       <startup class="org.jawata.eclipse.host.EngineStartup"/>
    </extension>
+   <!-- Spec D5: every setting of the engine is an Eclipse preference. One page built from the engine's own list of settings;
+        the initializer says what the engine's working folders are when the person set none. -->
+   <extension point="org.eclipse.ui.preferencePages">
+      <page id="org.jawata.eclipse.preferences.jawata" name="jawata" class="org.jawata.eclipse.preferences.JawataPreferencePage"/>
+   </extension>
+   <extension point="org.eclipse.core.runtime.preferences">
+      <initializer class="org.jawata.eclipse.host.EnginePreferenceInitializer"/>
+   </extension>
 </plugin>

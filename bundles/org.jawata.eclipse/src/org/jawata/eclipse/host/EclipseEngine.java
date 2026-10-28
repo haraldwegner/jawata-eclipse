@@ -79,12 +79,16 @@ public final class EclipseEngine implements AutoCloseable {
         }
         EclipsePersonChannel person = new EclipsePersonChannel(log, PLUGIN_ID);
         EclipseWorkspace folders = new EclipseWorkspace(workspace.getRoot());
-        // The engine's working folders default to the plug-in's state area; left unset, the engine falls back to the instance area,
-        // which in the IDE is the folder the person keeps their projects in (contract §3.3).
-        java.nio.file.Path stateArea = org.eclipse.core.runtime.Platform
-            .getStateLocation(org.osgi.framework.FrameworkUtil.getBundle(EclipseEngine.class)).toFile().toPath();
-        EclipseSettings settings = new EclipseSettings(InstanceScope.INSTANCE.getNode(PLUGIN_ID), EngineDefaults.inStateArea(stateArea),
-            System::getProperty);
+        // The engine's working folders default to the plug-in's state area, as Eclipse's default preferences say (the initializer
+        // fills them); left unset, the engine falls back to the instance area, which in the IDE is the folder the person keeps
+        // their projects in (contract §3.3).
+        org.eclipse.core.runtime.preferences.IEclipsePreferences defaultNode =
+            org.eclipse.core.runtime.preferences.DefaultScope.INSTANCE.getNode(PLUGIN_ID);
+        java.util.Map<String, String> defaults = new java.util.HashMap<>();
+        for (String key : defaultNode.keys()) {
+            defaults.put(key, defaultNode.get(key, null));
+        }
+        EclipseSettings settings = new EclipseSettings(InstanceScope.INSTANCE.getNode(PLUGIN_ID), defaults, System::getProperty);
         EclipseDirectories directories = new EclipseDirectories(settings,
             () -> folders.folders().stream().filter(ProjectFolder::open).map(ProjectFolder::path).toList());
         model = new EclipseJdtService(workspace.getRoot(), OPERATION_TIMEOUT_SECONDS);
