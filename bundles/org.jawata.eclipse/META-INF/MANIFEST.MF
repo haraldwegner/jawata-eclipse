@@ -40,7 +40,7 @@ Import-Package: org.eclipse.jdt.core.manipulation,
  org.jawata.spi.host;version="[1.0,2.0)",
  org.jawata.spi.lang;version="[1.0,2.0)",
  org.osgi.framework
-Export-Package: org.jawata.eclipse.access,
+Export-Package: org.jawata.eclipse.access;x-friends:="org.jawata.eclipse.chat,org.jawata.eclipse.tests",
  org.jawata.eclipse.host;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.java;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.preferences;x-friends:="org.jawata.eclipse.tests",

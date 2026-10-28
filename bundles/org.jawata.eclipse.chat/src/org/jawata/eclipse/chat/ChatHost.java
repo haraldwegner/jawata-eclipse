@@ -36,6 +36,7 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
     private final McpOffer offer;
     private final ChatDialogs dialogs;
     private final Runnable stopWatching;
+    private final Runnable stopWatchingTheme;
     private final ObjectMapper json = new ObjectMapper();
 
     /**
@@ -53,6 +54,7 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
         this.offer = new McpOffer(engineUrl);
         this.dialogs = dialogs;
         this.stopWatching = settings.onChange(this::settingsChanged);
+        this.stopWatchingTheme = watchTheme();
         page.setHandler(this::handle);
     }
 
@@ -67,7 +69,7 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
             JsonNode op = json.readTree(call);
             return switch (op.path("op").asText()) {
                 case "config" -> config();
-                case "theme" -> json.writeValueAsString(Map.of("css", page.themeCss()));
+                case "theme" -> json.writeValueAsString(Map.of("css", themeCss()));
                 case "started" -> {
                     int spoken = op.path("contract").asInt(-1);
                     log.accept("The chat page started on view contract " + spoken + ".");
@@ -182,6 +184,52 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
         deliver(event);
     }
 
+    /**
+     * The stylesheet of the Eclipse theme as it is now (step 21.10): it sets the view's theme inputs from the surface the page sits on.
+     *
+     * @return the stylesheet, as text
+     */
+    public String themeCss() {
+        return WidgetTheme.css(page);
+    }
+
+    /** Sends the page the theme as it is now, so an open chat is restyled at once. */
+    public void refreshTheme() {
+        if (page.isDisposed() || !page.isLoaded()) {
+            // a page not yet loaded asks for the theme itself when it starts
+            return;
+        }
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("kind", "theme");
+        event.put("css", themeCss());
+        deliver(event);
+    }
+
+    /**
+     * The person changes the workbench theme or the system's settings: the page follows.
+     *
+     * @return what stops the following
+     */
+    private Runnable watchTheme() {
+        org.eclipse.jface.util.IPropertyChangeListener changed = event -> refreshTheme();
+        org.eclipse.swt.widgets.Listener settings = event -> refreshTheme();
+        org.eclipse.swt.widgets.Display display = page.getDisplay();
+        display.addListener(org.eclipse.swt.SWT.Settings, settings);
+        org.eclipse.ui.themes.IThemeManager manager = org.eclipse.ui.PlatformUI.isWorkbenchRunning()
+            ? org.eclipse.ui.PlatformUI.getWorkbench().getThemeManager() : null;
+        if (manager != null) {
+            manager.addPropertyChangeListener(changed);
+        }
+        return () -> {
+            if (!display.isDisposed()) {
+                display.removeListener(org.eclipse.swt.SWT.Settings, settings);
+            }
+            if (manager != null) {
+                manager.removePropertyChangeListener(changed);
+            }
+        };
+    }
+
     /** The person changed the setup: an open page follows it, so its next question or agent start uses the new values. */
     private void settingsChanged() {
         Map<String, Object> event = configMap();
@@ -252,6 +300,7 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
     @Override
     public void close() {
         stopWatching.run();
+        stopWatchingTheme.run();
         relay.close();
     }
 }

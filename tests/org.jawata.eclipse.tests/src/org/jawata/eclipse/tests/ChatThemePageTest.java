@@ -19,6 +19,7 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PlatformUI;
+import org.jawata.eclipse.chat.ChatHost;
 import org.jawata.eclipse.chat.ChatPage;
 import org.jawata.eclipse.chat.ChatTheme;
 import org.jawata.eclipse.chat.ChatView;
@@ -70,7 +71,14 @@ public class ChatThemePageTest {
                 shown.setForeground(new Color(display, TEXT));
                 return shown;
             });
-            Map<String, String> inputs = inputsOf(UiThread.call(page::themeCss));
+            Map<String, String> inputs = inputsOf(UiThread.call(() -> {
+                ChatHost host = new ChatHost(page, FixedChatSettings.withoutAgent(), line -> { }, java.util.Optional::empty, new RecordingDialogs());
+                try {
+                    return host.themeCss();
+                } finally {
+                    host.close();
+                }
+            }));
             RGB selection = UiThread.call(() -> display.getSystemColor(SWT.COLOR_LIST_SELECTION).getRGB());
             RGB selectionText = UiThread.call(() -> display.getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT).getRGB());
             String defaultFont = UiThread.call(() -> JFaceResources.getDefaultFont().getFontData()[0].getName());
@@ -165,7 +173,7 @@ public class ChatThemePageTest {
 
             UiThread.call(() -> {
                 page.setBackground(new Color(display, GROUND));
-                page.refreshTheme();
+                view.host().refreshTheme();
                 return null;
             });
             Await.found("the page restyled by the refresh", () -> hex(GROUND).equals(groundInThePage(browser)) ? Optional.of(true) : Optional.empty());

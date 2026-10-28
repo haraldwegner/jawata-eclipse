@@ -70,38 +70,8 @@ public final class ChatPage extends Composite {
                 flushPending();
             }
         });
-        lockNavigation(url);
+        NavigationLock.install(browser, url);
         browser.setUrl(url);
-        watchTheme();
-    }
-
-    /**
-     * Keeps this browser on the page it was given. Assistant answers carry links, and a page that loaded in its place would inherit the
-     * bridge ({@code jawataHostCall} can start programs), so a link to the web opens in the system's browser and every other address
-     * is refused; a window the page asks for is refused too.
-     */
-    private void lockNavigation(String url) {
-        String folder = placeOf(url.substring(0, url.lastIndexOf('/') + 1));
-        browser.addLocationListener(new org.eclipse.swt.browser.LocationAdapter() {
-            @Override
-            public void changing(org.eclipse.swt.browser.LocationEvent event) {
-                String target = event.location;
-                if (placeOf(target).startsWith(folder) || "about:blank".equals(target)) {
-                    return;
-                }
-                event.doit = false;
-                if (target.startsWith("https://") || target.startsWith("http://")) {
-                    org.eclipse.swt.program.Program.launch(target);
-                }
-            }
-        });
-        // a window the page asks for is refused: with no browser set on the event, WebKit opens nothing
-        browser.addOpenWindowListener(event -> event.browser = null);
-    }
-
-    /** An address with its file scheme spelled one way: Java writes {@code file:/x} and the browser {@code file:///x} for the same place. */
-    static String placeOf(String address) {
-        return address.startsWith("file:") ? "file:/" + address.substring("file:".length()).replaceFirst("^/+", "") : address;
     }
 
     /** Sends what was held back while the page was loading, in the order it was sent. */
@@ -110,51 +80,6 @@ public final class ChatPage extends Composite {
             browser.execute("window.jawataHostDeliver(" + quote(message) + ");");
         }
         pending.clear();
-    }
-
-    /**
-     * The stylesheet of the Eclipse theme as it is now (step 21.10): it sets the view's theme inputs from the surface this page sits on.
-     *
-     * @return the stylesheet, as text
-     */
-    public String themeCss() {
-        return WidgetTheme.css(this);
-    }
-
-    /** Sends the page the theme as it is now, so an open chat is restyled at once. */
-    public void refreshTheme() {
-        if (isDisposed() || !loaded) {
-            // a page not yet loaded asks for the theme itself when it starts
-            return;
-        }
-        java.util.Map<String, String> event = new java.util.LinkedHashMap<>();
-        event.put("kind", "theme");
-        event.put("css", themeCss());
-        try {
-            deliver(new ObjectMapper().writeValueAsString(event));
-        } catch (IOException unwritable) {
-            // a map of two strings is always written
-            throw new IllegalStateException(unwritable);
-        }
-    }
-
-    /** The person changes the workbench theme or the system's settings: the page follows, and stops following when it goes away. */
-    private void watchTheme() {
-        org.eclipse.jface.util.IPropertyChangeListener changed = event -> refreshTheme();
-        org.eclipse.swt.widgets.Listener settings = event -> refreshTheme();
-        Display display = getDisplay();
-        display.addListener(SWT.Settings, settings);
-        org.eclipse.ui.themes.IThemeManager manager = org.eclipse.ui.PlatformUI.isWorkbenchRunning()
-            ? org.eclipse.ui.PlatformUI.getWorkbench().getThemeManager() : null;
-        if (manager != null) {
-            manager.addPropertyChangeListener(changed);
-        }
-        addDisposeListener(event -> {
-            display.removeListener(SWT.Settings, settings);
-            if (manager != null) {
-                manager.removePropertyChangeListener(changed);
-            }
-        });
     }
 
     /**
