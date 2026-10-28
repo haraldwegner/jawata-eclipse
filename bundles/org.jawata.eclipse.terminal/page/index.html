@@ -49,13 +49,22 @@
       for (let i = 0; i < text.length; i++) { bytes[i] = text.charCodeAt(i); }
       term.write(bytes);
     },
+    /** Types text as if the person had: it goes out as input, like every key. */
+    input: function (text) { term.input(text, true); },
     focus: function () { term.focus(); },
     size: function () { return { cols: term.cols, rows: term.rows }; }
   };
 
-  refit();
-  term.focus();
-  send({ type: 'ready', cols: term.cols, rows: term.rows });
+  // The host's function is put into the page by the browser after the page has started, so the page waits for it before it says it is ready.
+  function whenHost(then) {
+    if (typeof window.jawataTerminalHost === 'function') { then(); return; }
+    setTimeout(function () { whenHost(then); }, 50);
+  }
+  whenHost(function () {
+    refit();
+    term.focus();
+    send({ type: 'ready', cols: term.cols, rows: term.rows });
+  });
 </script>
 </body>
 </html>

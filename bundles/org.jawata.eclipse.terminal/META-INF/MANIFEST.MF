@@ -10,5 +10,7 @@ Automatic-Module-Name: org.jawata.eclipse.terminal
 Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.ui,
  org.eclipse.cdt.core.native
-Import-Package: org.osgi.framework
+Import-Package: com.fasterxml.jackson.core,
+ com.fasterxml.jackson.databind,
+ org.osgi.framework
 Export-Package: org.jawata.eclipse.terminal;x-friends:="org.jawata.eclipse.tests"
