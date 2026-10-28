@@ -96,12 +96,12 @@ public final class ChatCommandHandler extends AbstractHandler implements IExecut
         }
         if (OPEN_CHAT_IN_EDITOR.equals(name)) {
             try {
-                // one chat per window: the editor takes the view's place, so no second conversation runs beside the first
+                // the editor takes the view's place, so no second conversation runs beside the first; it opens first, so a failure leaves the view
                 IViewReference open = window.getActivePage().findViewReference(ChatView.ID);
+                window.getActivePage().openEditor(new ChatEditorInput(), ChatEditor.ID);
                 if (open != null) {
                     window.getActivePage().hideView(open);
                 }
-                window.getActivePage().openEditor(new ChatEditorInput(), ChatEditor.ID);
             } catch (PartInitException failed) {
                 throw new ExecutionException("The chat cannot be shown in the editor area: " + failed.getMessage(), failed);
             }
