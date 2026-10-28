@@ -90,9 +90,31 @@ public class ChatThemePageTest {
             assertEquals("\"" + textFont + "\", sans-serif", inputs.get("mono"), "mono is the workbench's text font");
             assertEquals("#2e9d57", inputs.get("ok"), "ok: Eclipse has no colour for success");
             assertEquals("#c98a1a", inputs.get("warn"), "warn: Eclipse has no colour for a warning");
-            for (String name : new String[] {"raised", "field", "field-text", "link", "bad"}) {
-                assertTrue(inputs.get(name).matches("#[0-9a-f]{6}"), name + " is a colour: " + inputs.get(name));
+            // the five that come from widgets Eclipse styles and from its colour registry, each read here the way a person's eye would
+            // find them: a list's background, a text field's two colours, the theme's link and error colours
+            Map<String, String> widgets = UiThread.call(() -> {
+                Shell probe = new Shell(display, SWT.NO_TRIM);
+                try {
+                    org.eclipse.swt.widgets.Composite holder = new org.eclipse.swt.widgets.Composite(probe, SWT.NONE);
+                    org.eclipse.swt.widgets.Text text = new org.eclipse.swt.widgets.Text(holder, SWT.BORDER);
+                    org.eclipse.swt.widgets.Tree tree = new org.eclipse.swt.widgets.Tree(holder, SWT.NONE);
+                    Color link = JFaceResources.getColorRegistry().get(org.eclipse.jface.preference.JFacePreferences.HYPERLINK_COLOR);
+                    Color error = JFaceResources.getColorRegistry().get(org.eclipse.jface.preference.JFacePreferences.ERROR_COLOR);
+                    Map<String, String> read = new TreeMap<>();
+                    read.put("raised", hex(tree.getBackground().getRGB()));
+                    read.put("field", hex(text.getBackground().getRGB()));
+                    read.put("field-text", hex(text.getForeground().getRGB()));
+                    read.put("link", hex((link != null ? link : display.getSystemColor(SWT.COLOR_LINK_FOREGROUND)).getRGB()));
+                    read.put("bad", hex((error != null ? error : display.getSystemColor(SWT.COLOR_RED)).getRGB()));
+                    return read;
+                } finally {
+                    probe.dispose();
+                }
+            });
+            for (Map.Entry<String, String> expected : widgets.entrySet()) {
+                assertEquals(expected.getValue(), inputs.get(expected.getKey()), expected.getKey() + " is the value of its widget or registry entry");
             }
+            assertEquals(5, widgets.size(), "all five are checked");
         } finally {
             Display.getDefault().syncExec(() -> {
                 if (shell.get() != null) {

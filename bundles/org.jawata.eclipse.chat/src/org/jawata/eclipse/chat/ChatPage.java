@@ -33,6 +33,8 @@ public final class ChatPage extends Composite {
     private final Browser browser;
     private volatile Function<String, String> handler = text -> null;
     private volatile boolean loaded;
+    /** Messages sent before the page finished loading, which would run against a blank page; touched on the user interface thread only. */
+    private final java.util.List<String> pending = new java.util.ArrayList<>();
 
     /**
      * Shows the page this bundle ships.
@@ -65,10 +67,49 @@ public final class ChatPage extends Composite {
             public void completed(ProgressEvent event) {
                 loaded = true;
                 browser.execute("window.dispatchEvent(new Event('jawata-host-ready'));");
+                flushPending();
             }
         });
+        lockNavigation(url);
         browser.setUrl(url);
         watchTheme();
+    }
+
+    /**
+     * Keeps this browser on the page it was given. Assistant answers carry links, and a page that loaded in its place would inherit the
+     * bridge ({@code jawataHostCall} can start programs), so a link to the web opens in the system's browser and every other address
+     * is refused; a window the page asks for is refused too.
+     */
+    private void lockNavigation(String url) {
+        String folder = placeOf(url.substring(0, url.lastIndexOf('/') + 1));
+        browser.addLocationListener(new org.eclipse.swt.browser.LocationAdapter() {
+            @Override
+            public void changing(org.eclipse.swt.browser.LocationEvent event) {
+                String target = event.location;
+                if (placeOf(target).startsWith(folder) || "about:blank".equals(target)) {
+                    return;
+                }
+                event.doit = false;
+                if (target.startsWith("https://") || target.startsWith("http://")) {
+                    org.eclipse.swt.program.Program.launch(target);
+                }
+            }
+        });
+        // a window the page asks for is refused: with no browser set on the event, WebKit opens nothing
+        browser.addOpenWindowListener(event -> event.browser = null);
+    }
+
+    /** An address with its file scheme spelled one way: Java writes {@code file:/x} and the browser {@code file:///x} for the same place. */
+    static String placeOf(String address) {
+        return address.startsWith("file:") ? "file:/" + address.substring("file:".length()).replaceFirst("^/+", "") : address;
+    }
+
+    /** Sends what was held back while the page was loading, in the order it was sent. */
+    private void flushPending() {
+        for (String message : pending) {
+            browser.execute("window.jawataHostDeliver(" + quote(message) + ");");
+        }
+        pending.clear();
     }
 
     /**
@@ -142,8 +183,13 @@ public final class ChatPage extends Composite {
     public void deliver(String message) {
         Display display = getDisplay();
         display.asyncExec(() -> {
-            if (!isDisposed()) {
+            if (isDisposed()) {
+                return;
+            }
+            if (loaded) {
                 browser.execute("window.jawataHostDeliver(" + quote(message) + ");");
+            } else {
+                pending.add(message);
             }
         });
     }

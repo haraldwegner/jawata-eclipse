@@ -49,6 +49,17 @@ final class HostTestPage implements AutoCloseable {
      * @param dialogs how the chat's questions are shown and answered
      */
     HostTestPage(ChatSettings settings, RecordingDialogs dialogs) {
+        this(settings, dialogs, Optional::empty);
+    }
+
+    /**
+     * Opens the page with an engine address, so the agent is offered jawata's tools as it is in the chat view.
+     *
+     * @param settings the chat setup the host serves
+     * @param dialogs how the chat's questions are shown and answered
+     * @param engineUrl where the engine can be reached now, empty when it cannot yet
+     */
+    HostTestPage(ChatSettings settings, RecordingDialogs dialogs, java.util.function.Supplier<Optional<String>> engineUrl) {
         AtomicReference<Shell> shown = new AtomicReference<>();
         AtomicReference<ChatPage> paged = new AtomicReference<>();
         AtomicReference<ChatHost> serving = new AtomicReference<>();
@@ -56,7 +67,7 @@ final class HostTestPage implements AutoCloseable {
             Shell created = new Shell(Display.getDefault(), SWT.SHELL_TRIM);
             created.setLayout(new FillLayout());
             ChatPage chatPage = new ChatPage(created, builtPage().toUri().toString());
-            ChatHost chatHost = new ChatHost(chatPage, settings, line -> { }, Optional::empty, dialogs);
+            ChatHost chatHost = new ChatHost(chatPage, settings, line -> { }, engineUrl, dialogs);
             chatPage.setHandler(call -> {
                 calls.add(call);
                 return chatHost.handle(call);
@@ -101,6 +112,21 @@ final class HostTestPage implements AutoCloseable {
      */
     void command(String name, java.util.Map<String, String> args) {
         Display.getDefault().syncExec(() -> host.command(name, args));
+    }
+
+    /**
+     * Reads a value out of the shown page.
+     *
+     * @param expression a script expression
+     * @return what it gave
+     */
+    Object evaluate(String expression) {
+        return UiThread.call(() -> ((Browser) page.getChildren()[0]).evaluate("return " + expression + ";"));
+    }
+
+    /** The address the shown page is at now. */
+    String url() {
+        return UiThread.call(() -> ((Browser) page.getChildren()[0]).getUrl());
     }
 
     /** The first call the page made with this op, if it has made one. */

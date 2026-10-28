@@ -352,10 +352,11 @@ for pkg in java rcp; do
     #   ChatSetupTest, ChatQuestionsTest, WorkbenchDialogsTest   the preference page, the questions and the notices, pressed in real dialogs
     #   ChatCommandsTest                     every chat command is an Eclipse command, and a command gives the page's own stream
     #   ChatThemeTest, ChatThemePageTest     the theme map is pinned input by input, and an open chat follows a change of theme
-    #   ChatBusyTest                         a second prompt waits behind a long tool call while the interface and the focus stay as they were
+    #   ChatBusyTest                         a second prompt waits behind a long tool call and a cancel is not held behind it, while the interface and the focus stay as they were
+#   ChatPageGuardsTest                   the browser cannot be sent away from the chat, early messages reach the page, the host offers the agent jawata
     p21_missing=""
     for p21_class in AgentRelayTest McpOfferTest ChatPageTest ChatBundleManifestTest ChatHostConformanceTest ChatReplayTest ChatSetupTest \
-                     ChatQuestionsTest WorkbenchDialogsTest ChatCommandsTest ChatThemeTest ChatThemePageTest ChatBusyTest; do
+                     ChatQuestionsTest WorkbenchDialogsTest ChatCommandsTest ChatThemeTest ChatThemePageTest ChatBusyTest ChatPageGuardsTest; do
         p21_line="$(grep -h "Tests run:.*in org.jawata.eclipse.tests.$p21_class\$" "$tests_out" | head -1)"
         case "$p21_line" in
             "Tests run: "[0-9]*", Failures: 0, Errors: 0"*) ;;
@@ -363,7 +364,7 @@ for pkg in java rcp; do
         esac
     done
     if [ -z "$p21_missing" ] && node --version > /dev/null 2>&1; then
-        ok "P21 $pkg: the chat bundle and its 13 test classes are in the build and passed in this download: the agent relay, the engine's tools offered to the agent, the page and its contract, the host-port conformance, the replayed sessions, the preference page and dialogs, the Eclipse commands, the theme map and a theme change, and a long tool call that leaves the interface and the focus alone"
+        ok "P21 $pkg: the chat bundle and its 14 test classes are in the build and passed in this download: the agent relay, the engine's tools offered to the agent, the page and its contract, the host-port conformance, the replayed sessions, the preference page and dialogs, the Eclipse commands, the theme map and a theme change, and a long tool call that leaves the interface and the focus alone"
     else
         fail "P21 $pkg: the chat tests did not all pass in this download (not passed or not run:${p21_missing:- none}; node: $(node --version 2>&1 | head -1))"
     fi

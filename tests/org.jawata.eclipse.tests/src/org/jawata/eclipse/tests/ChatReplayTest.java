@@ -145,6 +145,11 @@ public class ChatReplayTest {
     }
 
     @Test
+    public void r5AModelChangeWithOneOptionPerSeatReachesTheView() throws Exception {
+        assertShapeReachesTheView("R5");
+    }
+
+    @Test
     public void r4TwoOverlappingHiresReachTheView() throws Exception {
         assertShapeReachesTheView("R4");
     }
