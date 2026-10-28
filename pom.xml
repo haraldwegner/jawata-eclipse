@@ -17,6 +17,7 @@
     <module>releng/org.jawata.eclipse.target</module>
     <module>bundles/org.jawata.eclipse</module>
     <module>bundles/org.jawata.eclipse.chat</module>
+    <module>bundles/org.jawata.eclipse.terminal</module>
     <module>features/org.jawata.engine.feature</module>
     <module>features/org.jawata.eclipse.feature</module>
     <module>tests/org.jawata.eclipse.tests</module>

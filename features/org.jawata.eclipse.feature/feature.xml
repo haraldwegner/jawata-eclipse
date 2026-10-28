@@ -12,4 +12,5 @@
    </requires>
    <plugin id="org.jawata.eclipse" version="0.0.0"/>
    <plugin id="org.jawata.eclipse.chat" version="0.0.0"/>
+   <plugin id="org.jawata.eclipse.terminal" version="0.0.0"/>
 </feature>

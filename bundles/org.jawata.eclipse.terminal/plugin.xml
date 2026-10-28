@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <!-- Spec D7 as ruled by him on 2026-10-28 (plan Stage 13c): a terminal like VS Code's, one he types into and that draws box lines and
+        Unicode properly. Eclipse's own Terminal stays installed and unchanged. This is a view with a browser page that holds xterm.js. -->
+   <extension point="org.eclipse.ui.views">
+      <category id="org.jawata.eclipse.terminal.category" name="jawata"/>
+      <view id="org.jawata.eclipse.terminal.view"
+            name="jawata terminal"
+            category="org.jawata.eclipse.terminal.category"
+            class="org.jawata.eclipse.terminal.TerminalView"
+            allowMultiple="false"/>
+   </extension>
+</plugin>
