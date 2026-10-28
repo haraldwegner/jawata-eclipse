@@ -14,6 +14,7 @@ import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
+import org.osgi.service.prefs.BackingStoreException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,6 +32,12 @@ public final class PreferencesChatSettings implements ChatSettings {
     public static final String AGENT = "agent";
     /** The key holding the folder the agent works in. */
     public static final String WORKING_FOLDER = "workingFolder";
+    /** The key holding where a newly opened chat goes ({@link ChatPlacementChoice}); absent until the person has chosen. */
+    public static final String PLACEMENT = "placement";
+    /** The key holding whether opening the chat reopens the last conversation; on when absent. */
+    public static final String CONTINUE_LAST_CONVERSATION = "continueLastConversation";
+    /** The key holding the agent's id for the conversation the person had last. */
+    public static final String LAST_SESSION = "lastSession";
 
     private final IEclipsePreferences node = InstanceScope.INSTANCE.getNode(NODE);
     private final ObjectMapper json = new ObjectMapper();
@@ -122,6 +129,29 @@ public final class PreferencesChatSettings implements ChatSettings {
     @Override
     public String agentSetup() {
         return "the jawata chat preferences";
+    }
+
+    @Override
+    public boolean continueLastConversation() {
+        return node.getBoolean(CONTINUE_LAST_CONVERSATION, true);
+    }
+
+    @Override
+    public String lastSession() {
+        return node.get(LAST_SESSION, "").trim();
+    }
+
+    @Override
+    public void rememberSession(String sessionId) {
+        if (sessionId.equals(lastSession())) {
+            return;
+        }
+        node.put(LAST_SESSION, sessionId);
+        try {
+            node.flush();
+        } catch (BackingStoreException unsaved) {
+            // the conversation is remembered for this session; the next start may not continue it
+        }
     }
 
     @Override

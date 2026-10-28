@@ -80,6 +80,7 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
                         log.accept(mismatch);
                         dialogs.error(mismatch);
                     }
+                    reopenLastConversation();
                     yield null;
                 }
                 case "spawn" -> {
@@ -87,7 +88,9 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
                     yield null;
                 }
                 case "write" -> {
-                    relay.send(op.path("id").asText(), offer.apply(op.path("message").asText()));
+                    String message = op.path("message").asText();
+                    rememberSessionIn(message);
+                    relay.send(op.path("id").asText(), offer.apply(message));
                     yield null;
                 }
                 case "kill" -> String.valueOf(relay.kill(op.path("id").asText()));
@@ -235,6 +238,36 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
         Map<String, Object> event = configMap();
         event.put("kind", "settings");
         deliver(event);
+    }
+
+    /**
+     * Keeps the conversation a message from the page belongs to, when the message opens or continues one: a prompt, a load or a resume. A
+     * conversation that never had a prompt is not worth coming back to, so a new session alone is not kept.
+     */
+    private void rememberSessionIn(String message) {
+        if (!message.contains("\"session/")) {
+            return;
+        }
+        try {
+            JsonNode sent = json.readTree(message);
+            String method = sent.path("method").asText();
+            if (method.equals("session/prompt") || method.equals("session/load") || method.equals("session/resume")) {
+                String id = sent.path("params").path("sessionId").asText("");
+                if (!id.isBlank()) {
+                    settings.rememberSession(id);
+                }
+            }
+        } catch (IOException unreadable) {
+            // a message the agent cannot read either is its to refuse; there is nothing to remember
+        }
+    }
+
+    /** The page has started: when the person wants it, it reopens the conversation they had last, which starts the agent. */
+    private void reopenLastConversation() {
+        String last = settings.lastSession();
+        if (settings.continueLastConversation() && !last.isEmpty() && !settings.agentCommand().isEmpty()) {
+            command("openSession", Map.of("sessionId", last));
+        }
     }
 
     /** Answers a question the page asked, by the ticket it gave. */

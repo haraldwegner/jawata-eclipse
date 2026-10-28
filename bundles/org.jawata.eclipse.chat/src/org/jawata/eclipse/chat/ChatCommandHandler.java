@@ -15,7 +15,6 @@ import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.IViewReference;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PartInitException;
@@ -39,9 +38,6 @@ public final class ChatCommandHandler extends AbstractHandler implements IExecut
 
     /** The command that only shows the chat. */
     public static final String OPEN_CHAT = "openChat";
-
-    /** The command that opens the chat as a page in the editor area (plan Stage 23; one of the two placements the person picks from). */
-    public static final String OPEN_CHAT_IN_EDITOR = "openChatInEditor";
 
     /** The command that opens the chat's preference page. */
     public static final String CONFIGURE_AGENT = "configureAgent";
@@ -94,19 +90,6 @@ public final class ChatCommandHandler extends AbstractHandler implements IExecut
             PreferencesUtil.createPreferenceDialogOn(window.getShell(), ChatPreferencePage.ID, null, null).open();
             return null;
         }
-        if (OPEN_CHAT_IN_EDITOR.equals(name)) {
-            try {
-                // the editor takes the view's place, so no second conversation runs beside the first; it opens first, so a failure leaves the view
-                IViewReference open = window.getActivePage().findViewReference(ChatView.ID);
-                window.getActivePage().openEditor(new ChatEditorInput(), ChatEditor.ID);
-                if (open != null) {
-                    window.getActivePage().hideView(open);
-                }
-            } catch (PartInitException failed) {
-                throw new ExecutionException("The chat cannot be shown in the editor area: " + failed.getMessage(), failed);
-            }
-            return null;
-        }
         ChatHost host = show(window.getActivePage());
         if (host == null || OPEN_CHAT.equals(name)) {
             return null;
@@ -118,13 +101,9 @@ public final class ChatCommandHandler extends AbstractHandler implements IExecut
         return null;
     }
 
-    /** Shows the chat and gives its host: the one in the editor area when the person has the chat open there, else the view's. Null when it cannot be shown. */
+    /** Shows the chat and gives its host. A chat that opens now goes where the person chose, as the view says. Null when it cannot be shown. */
     private static ChatHost show(IWorkbenchPage page) throws ExecutionException {
         try {
-            if (page.findEditor(new ChatEditorInput()) instanceof ChatEditor editor) {
-                page.activate(editor);
-                return editor.host();
-            }
             return page.showView(ChatView.ID) instanceof ChatView view ? view.host() : null;
         } catch (PartInitException failed) {
             throw new ExecutionException("The chat cannot be shown: " + failed.getMessage(), failed);

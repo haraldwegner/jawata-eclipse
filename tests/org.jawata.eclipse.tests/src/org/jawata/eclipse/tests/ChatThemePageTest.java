@@ -2,7 +2,6 @@ package org.jawata.eclipse.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +23,7 @@ import org.jawata.eclipse.chat.ChatPage;
 import org.jawata.eclipse.chat.ChatTheme;
 import org.jawata.eclipse.chat.ChatView;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Plan Stage 21, step 21.10 (ledger 28i-C19-6): the theme the page receives is Eclipse's as it is, value by value, and an open chat follows
@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
  * with the value worked out here from SWT and JFace; the second shows the real chat view and watches its page restyle itself, once on the
  * page's own refresh and once on the system's settings event, which is the one a theme switch raises.
  */
+@ExtendWith(ChatPlacementSetup.class)
 public class ChatThemePageTest {
 
     private static final RGB GROUND = new RGB(0x12, 0x34, 0x56);

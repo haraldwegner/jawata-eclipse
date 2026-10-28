@@ -28,6 +28,7 @@ import org.eclipse.ui.handlers.IHandlerService;
 import org.jawata.eclipse.chat.ChatCommandHandler;
 import org.jawata.eclipse.chat.ChatView;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,6 +39,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * table of commands is the same list; a conversation driven by commands gives the view the stream the page's own intent gives (chat-core's
  * golden for R1); and the real handler, run on the real view, reaches the real page.
  */
+@ExtendWith(ChatPlacementSetup.class)
 public class ChatCommandsTest {
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -46,7 +48,6 @@ public class ChatCommandsTest {
     private static List<String> declared() {
         List<String> names = new ArrayList<>(ChatCommandHandler.PAGE_COMMANDS.keySet());
         names.add(ChatCommandHandler.OPEN_CHAT);
-        names.add(ChatCommandHandler.OPEN_CHAT_IN_EDITOR);
         names.add(ChatCommandHandler.CONFIGURE_AGENT);
         return names;
     }

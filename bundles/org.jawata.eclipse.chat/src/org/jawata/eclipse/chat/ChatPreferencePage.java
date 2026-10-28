@@ -10,6 +10,7 @@ import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.DirectoryDialog;
@@ -31,8 +32,14 @@ public final class ChatPreferencePage extends PreferencePage implements IWorkben
 
     private static final String AGENT_EXAMPLE = "{\"command\": \"npx\", \"args\": [\"-y\", \"@agentclientprotocol/claude-agent-acp@0.93.0\"]}";
 
+    private static final String ASK_ME = "Ask me the next time the chat opens";
+    private static final String IN_THE_MIDDLE = "In the middle, next to my files";
+    private static final String IN_A_SIDE_PANEL = "In a side panel";
+
     private Text agent;
     private Text folder;
+    private Combo placement;
+    private Button continueLast;
 
     @Override
     public void init(IWorkbench workbench) {
@@ -75,7 +82,28 @@ public final class ChatPreferencePage extends PreferencePage implements IWorkben
             }
         });
         label(page, "Empty means the folder of the Eclipse workspace.", "", 2);
+
+        label(page, "Where the chat opens", "Where a chat that opens now goes. A chat that is already open stays where it is.", 2);
+        placement = new Combo(page, SWT.READ_ONLY);
+        placement.setItems(ASK_ME, IN_THE_MIDDLE, IN_A_SIDE_PANEL);
+        placement.select(placementIndex());
+        placement.setToolTipText("In the middle: next to your files, in the editor area. In a side panel: like other views. "
+            + "Ask me: the chat asks again the next time it opens.");
+        placement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
+        label(page, "Applies the next time the chat opens. You can still drag the chat anywhere; it stays where you put it.", "", 2);
+
+        continueLast = new Button(page, SWT.CHECK);
+        continueLast.setText("Continue my last conversation when the chat opens");
+        continueLast.setSelection(node.getBoolean(PreferencesChatSettings.CONTINUE_LAST_CONVERSATION, true));
+        continueLast.setToolTipText("On: opening the chat starts the agent and reopens the conversation you had last, if the agent can reopen conversations. "
+            + "Off: the chat opens empty and you connect it yourself.");
+        continueLast.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
+        label(page, "Off means the chat opens empty until you connect it. With no agent set there is nothing to continue.", "", 2);
         return page;
+    }
+
+    private static int placementIndex() {
+        return ChatPlacementChoice.chosen().map(where -> where == ChatPlacementChoice.Where.EDITOR_AREA ? 1 : 2).orElse(0);
     }
 
     private static Label label(Composite parent, String text, String tooltip, int span) {
@@ -92,6 +120,8 @@ public final class ChatPreferencePage extends PreferencePage implements IWorkben
     protected void performDefaults() {
         agent.setText("");
         folder.setText("");
+        placement.select(0);
+        continueLast.setSelection(true);
         super.performDefaults();
     }
 
@@ -106,6 +136,12 @@ public final class ChatPreferencePage extends PreferencePage implements IWorkben
         Preferences node = InstanceScope.INSTANCE.getNode(PreferencesChatSettings.NODE);
         node.put(PreferencesChatSettings.AGENT, agent.getText().trim());
         node.put(PreferencesChatSettings.WORKING_FOLDER, folder.getText().trim());
+        node.putBoolean(PreferencesChatSettings.CONTINUE_LAST_CONVERSATION, continueLast.getSelection());
+        switch (placement.getSelectionIndex()) {
+            case 1 -> node.put(PreferencesChatSettings.PLACEMENT, ChatPlacementChoice.Where.EDITOR_AREA.stored());
+            case 2 -> node.put(PreferencesChatSettings.PLACEMENT, ChatPlacementChoice.Where.SIDE_PANEL.stored());
+            default -> node.remove(PreferencesChatSettings.PLACEMENT);
+        }
         try {
             node.flush();
         } catch (BackingStoreException unsaved) {

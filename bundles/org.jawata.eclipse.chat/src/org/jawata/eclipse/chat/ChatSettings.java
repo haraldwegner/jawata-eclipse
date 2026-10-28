@@ -53,4 +53,31 @@ public interface ChatSettings {
      * @return the plug-in's version
      */
     String clientVersion();
+
+    /**
+     * Whether opening the chat reopens the conversation the person had last. A setup that keeps nothing says no.
+     *
+     * @return true when the last conversation is to be continued
+     */
+    default boolean continueLastConversation() {
+        return false;
+    }
+
+    /**
+     * The conversation the person had last.
+     *
+     * @return the agent's id for it, empty when there is none
+     */
+    default String lastSession() {
+        return "";
+    }
+
+    /**
+     * Keeps the conversation the person is in, so the next time the chat opens it can be continued.
+     *
+     * @param sessionId the agent's id for the conversation
+     */
+    default void rememberSession(String sessionId) {
+        // a setup that keeps nothing forgets it
+    }
 }
