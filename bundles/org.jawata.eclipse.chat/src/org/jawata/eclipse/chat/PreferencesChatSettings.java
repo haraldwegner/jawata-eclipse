@@ -7,12 +7,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
-import org.osgi.service.prefs.Preferences;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,7 +32,7 @@ public final class PreferencesChatSettings implements ChatSettings {
     /** The key holding the folder the agent works in. */
     public static final String WORKING_FOLDER = "workingFolder";
 
-    private final Preferences node = InstanceScope.INSTANCE.getNode(NODE);
+    private final IEclipsePreferences node = InstanceScope.INSTANCE.getNode(NODE);
     private final ObjectMapper json = new ObjectMapper();
 
     private JsonNode agent() {
@@ -77,6 +78,45 @@ public final class PreferencesChatSettings implements ChatSettings {
         } catch (URISyntaxException | RuntimeException unavailable) {
             return Path.of(System.getProperty("user.home"));
         }
+    }
+
+    /**
+     * What is wrong with an agent the person typed.
+     *
+     * @param text the agent as JSON text
+     * @return the problem in words the person can act on, or empty when the text is blank (no agent) or a usable agent
+     */
+    public static Optional<String> problemWith(String text) {
+        String trimmed = text.trim();
+        if (trimmed.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            JsonNode read = new ObjectMapper().readTree(trimmed);
+            if (!read.isObject()) {
+                return Optional.of("write it as one JSON object, such as " + "{\"command\": \"npx\", \"args\": [\"-y\", \"name\"]}.");
+            }
+            if (read.path("command").asText("").isBlank()) {
+                return Optional.of("\"command\" is missing: name the program to start.");
+            }
+            if (read.has("args") && !read.get("args").isArray()) {
+                return Optional.of("\"args\" must be a list of text, such as [\"-y\", \"name\"].");
+            }
+            if (read.has("env") && !read.get("env").isObject()) {
+                return Optional.of("\"env\" must be an object of text values, such as {\"NAME\": \"value\"}.");
+            }
+            return Optional.empty();
+        } catch (IOException unreadable) {
+            String first = String.valueOf(unreadable.getMessage()).lines().findFirst().orElse("");
+            return Optional.of("this is not valid JSON (" + first + ").");
+        }
+    }
+
+    @Override
+    public Runnable onChange(Runnable listener) {
+        IEclipsePreferences.IPreferenceChangeListener told = event -> listener.run();
+        node.addPreferenceChangeListener(told);
+        return () -> node.removePreferenceChangeListener(told);
     }
 
     @Override

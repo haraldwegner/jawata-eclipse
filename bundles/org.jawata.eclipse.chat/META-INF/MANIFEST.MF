@@ -13,5 +13,6 @@ Import-Package: com.fasterxml.jackson.core,
  com.fasterxml.jackson.databind,
  com.fasterxml.jackson.databind.node,
  org.jawata.eclipse.access,
- org.osgi.framework
+ org.osgi.framework,
+ org.osgi.service.prefs
 Export-Package: org.jawata.eclipse.chat;x-friends:="org.jawata.eclipse.tests"

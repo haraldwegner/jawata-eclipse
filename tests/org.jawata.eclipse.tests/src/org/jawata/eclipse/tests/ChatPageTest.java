@@ -89,7 +89,7 @@ public class ChatPageTest {
             Shell created = new Shell(Display.getDefault(), SWT.SHELL_TRIM);
             created.setLayout(new FillLayout());
             ChatPage shown = new ChatPage(created);
-            ChatHost serving = new ChatHost(shown, FixedChatSettings.withoutAgent(), line -> { }, Optional::empty);
+            ChatHost serving = new ChatHost(shown, FixedChatSettings.withoutAgent(), line -> { }, Optional::empty, new RecordingDialogs());
             shown.setHandler(call -> {
                 calls.add(call);
                 return serving.handle(call);

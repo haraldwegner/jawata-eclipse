@@ -24,7 +24,8 @@ public final class ChatView extends ViewPart {
     @Override
     public void createPartControl(Composite parent) {
         page = new ChatPage(parent);
-        host = new ChatHost(page, new PreferencesChatSettings(), ChatView::log, EngineAddress::url);
+        host = new ChatHost(page, new PreferencesChatSettings(), ChatView::log, EngineAddress::url,
+            new WorkbenchDialogs(() -> getSite().getShell(), message -> getViewSite().getActionBars().getStatusLineManager().setMessage(message)));
     }
 
     @Override

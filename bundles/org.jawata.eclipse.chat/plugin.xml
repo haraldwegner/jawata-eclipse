@@ -10,4 +10,11 @@
             class="org.jawata.eclipse.chat.ChatView"
             allowMultiple="false"/>
    </extension>
+   <!-- Plan Stage 21, step 21.8: where the person says which agent the chat talks to and the folder it works in. -->
+   <extension point="org.eclipse.ui.preferencePages">
+      <page id="org.jawata.eclipse.chat.preferences"
+            name="jawata chat"
+            category="org.jawata.eclipse.preferences.jawata"
+            class="org.jawata.eclipse.chat.ChatPreferencePage"/>
+   </extension>
 </plugin>

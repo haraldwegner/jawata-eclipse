@@ -40,6 +40,14 @@ public interface ChatSettings {
     String agentSetup();
 
     /**
+     * Asks to be told when the setup changes, so an open chat follows it without restarting.
+     *
+     * @param listener called after any of the above may have changed, on whatever thread changed it
+     * @return what stops the telling when run
+     */
+    Runnable onChange(Runnable listener);
+
+    /**
      * The version the chat tells the agent it is.
      *
      * @return the plug-in's version

@@ -39,6 +39,16 @@ final class HostTestPage implements AutoCloseable {
      * @param settings the chat setup the host serves
      */
     HostTestPage(ChatSettings settings) {
+        this(settings, new RecordingDialogs());
+    }
+
+    /**
+     * Opens the page with the given way of asking the person, and waits for it to start.
+     *
+     * @param settings the chat setup the host serves
+     * @param dialogs how the chat's questions are shown and answered
+     */
+    HostTestPage(ChatSettings settings, RecordingDialogs dialogs) {
         AtomicReference<Shell> shown = new AtomicReference<>();
         AtomicReference<ChatPage> paged = new AtomicReference<>();
         AtomicReference<ChatHost> serving = new AtomicReference<>();
@@ -46,7 +56,7 @@ final class HostTestPage implements AutoCloseable {
             Shell created = new Shell(Display.getDefault(), SWT.SHELL_TRIM);
             created.setLayout(new FillLayout());
             ChatPage chatPage = new ChatPage(created, builtPage().toUri().toString());
-            ChatHost chatHost = new ChatHost(chatPage, settings, line -> { }, Optional::empty);
+            ChatHost chatHost = new ChatHost(chatPage, settings, line -> { }, Optional::empty, dialogs);
             chatPage.setHandler(call -> {
                 calls.add(call);
                 return chatHost.handle(call);

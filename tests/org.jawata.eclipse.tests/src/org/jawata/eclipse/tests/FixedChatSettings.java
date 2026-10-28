@@ -20,6 +20,11 @@ record FixedChatSettings(List<String> agentCommand, Map<String, String> agentEnv
     }
 
     @Override
+    public Runnable onChange(Runnable listener) {
+        return () -> { };
+    }
+
+    @Override
     public String clientVersion() {
         return "0.0.0-test";
     }

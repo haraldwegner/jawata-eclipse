@@ -34,6 +34,8 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
     private final Consumer<String> log;
     private final AgentRelay relay;
     private final McpOffer offer;
+    private final ChatDialogs dialogs;
+    private final Runnable stopWatching;
     private final ObjectMapper json = new ObjectMapper();
 
     /**
@@ -41,13 +43,16 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
      * @param settings what the chat reads from the person's setup
      * @param log where the host and the agents' standard error write
      * @param engineUrl where the engine in this Eclipse can be reached now, empty when it cannot yet; the agent is offered it as an MCP server
+     * @param dialogs how the person is asked and told things: the chat's questions, work in progress and notices
      */
-    public ChatHost(ChatPage page, ChatSettings settings, Consumer<String> log, Supplier<Optional<String>> engineUrl) {
+    public ChatHost(ChatPage page, ChatSettings settings, Consumer<String> log, Supplier<Optional<String>> engineUrl, ChatDialogs dialogs) {
         this.page = page;
         this.settings = settings;
         this.log = log;
         this.relay = new AgentRelay(this, log);
         this.offer = new McpOffer(engineUrl);
+        this.dialogs = dialogs;
+        this.stopWatching = settings.onChange(this::settingsChanged);
         page.setHandler(this::handle);
     }
 
@@ -79,14 +84,44 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
                     log.accept(op.path("message").asText());
                     yield null;
                 }
-                case "info", "error" -> {
-                    log.accept("[" + op.path("op").asText() + "] " + op.path("message").asText());
+                case "info" -> {
+                    log.accept("[info] " + op.path("message").asText());
+                    dialogs.info(op.path("message").asText());
                     yield null;
                 }
-                case "progress" -> null;
-                case "confirm", "chooseAuthMethod", "confirmAuthMethod", "configureAgent" -> {
-                    log.accept("The chat asked for \"" + op.path("op").asText() + "\", which is answered as cancelled until step 21.9.");
-                    deliver(Map.of("kind", "answer", "ticket", op.path("ticket").asText()));
+                case "error" -> {
+                    log.accept("[error] " + op.path("message").asText());
+                    dialogs.error(op.path("message").asText());
+                    yield null;
+                }
+                case "progress" -> {
+                    String ticket = op.path("ticket").asText();
+                    if ("begin".equals(op.path("phase").asText())) {
+                        dialogs.progressBegun(ticket, op.path("title").asText());
+                    } else {
+                        dialogs.progressEnded(ticket);
+                    }
+                    yield null;
+                }
+                case "confirm" -> {
+                    String ticket = op.path("ticket").asText();
+                    dialogs.confirm(op.path("question").asText(), op.path("yes").asText(), taken -> answer(ticket, taken));
+                    yield null;
+                }
+                case "confirmAuthMethod" -> {
+                    String ticket = op.path("ticket").asText();
+                    String text = op.path("agentName").asText() + " signs you in with " + op.path("method").path("name").asText() + ".";
+                    dialogs.confirm(text, "Continue", taken -> answer(ticket, taken));
+                    yield null;
+                }
+                case "chooseAuthMethod" -> {
+                    String ticket = op.path("ticket").asText();
+                    dialogs.choose(op.path("agentName").asText(), methodsOf(op.path("methods")), picked -> answer(ticket, picked.orElse(null)));
+                    yield null;
+                }
+                case "configureAgent" -> {
+                    String ticket = op.path("ticket").asText();
+                    dialogs.configureAgent(() -> answer(ticket, null));
                     yield null;
                 }
                 default -> {
@@ -100,7 +135,8 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
         }
     }
 
-    private String config() throws JsonProcessingException {
+    /** The settings the page reads at once: the agent, the folder it works in, and where the person sets them. */
+    private Map<String, Object> configMap() {
         Map<String, Object> agents = new LinkedHashMap<>();
         List<String> command = settings.agentCommand();
         if (!command.isEmpty()) {
@@ -114,8 +150,35 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
         config.put("agents", agents);
         config.put("cwd", settings.workingFolder().toString());
         config.put("agentSetup", settings.agentSetup());
+        return config;
+    }
+
+    private String config() throws JsonProcessingException {
+        Map<String, Object> config = configMap();
         config.put("clientInfo", Map.of("name", "eclipse-jawata-chat", "version", settings.clientVersion()));
         return json.writeValueAsString(config);
+    }
+
+    /** The person changed the setup: an open page follows it, so its next question or agent start uses the new values. */
+    private void settingsChanged() {
+        Map<String, Object> event = configMap();
+        event.put("kind", "settings");
+        deliver(event);
+    }
+
+    /** Answers a question the page asked, by the ticket it gave. */
+    private void answer(String ticket, Object value) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("kind", "answer");
+        event.put("ticket", ticket);
+        event.put("value", value);
+        deliver(event);
+    }
+
+    private static List<ChatDialogs.Method> methodsOf(JsonNode methods) {
+        List<ChatDialogs.Method> found = new ArrayList<>();
+        methods.forEach(method -> found.add(new ChatDialogs.Method(method.path("id").asText(), method.path("name").asText(), method.path("description").asText(""))));
+        return found;
     }
 
     private void spawn(JsonNode op) {
@@ -165,6 +228,7 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
     /** Ends every agent. */
     @Override
     public void close() {
+        stopWatching.run();
         relay.close();
     }
 }

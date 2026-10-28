@@ -80,6 +80,42 @@ window.loadSession = async (spec) => {
   }
 };
 
+/**
+ * Step 21.9: one question or notice the core can put to its host, asked through the adapter; the answer goes to Java as {op:'asked', value}.
+ * @param {{ kind: 'confirm', question: string, yes: string } | { kind: 'choose', methods: object[] } | { kind: 'configure' }
+ *          | { kind: 'progress', title: string, ms: number }} spec
+ */
+window.ask = async (spec) => {
+  let value = null;
+  if (spec.kind === 'confirm') {
+    value = await host.ports.chooser.confirm(spec.question, spec.yes);
+  } else if (spec.kind === 'choose') {
+    const picked = await host.ports.chooser.chooseAuthMethod('the agent', spec.methods);
+    value = picked ? picked.id : null;
+  } else if (spec.kind === 'configure') {
+    await host.ports.actions.configureAgent();
+    value = 'configured';
+  } else if (spec.kind === 'progress') {
+    value = await host.ports.notifier.progress(spec.title, async () => {
+      await new Promise((resolve) => setTimeout(resolve, spec.ms));
+      return 'finished';
+    });
+  }
+  bridge.call({ op: 'asked', value });
+};
+
+/** Step 21.8: the person asks to connect while no agent is set; the core answers with its question, which the host shows. */
+window.connectWithoutAgent = async () => {
+  const chat = createChat(host.ports);
+  chat.controller.attach(new RecordingPort());
+  try {
+    await chat.controller.handle({ type: 'connectAgent' });
+    bridge.call({ op: 'connected' });
+  } finally {
+    chat.dispose();
+  }
+};
+
 if (typeof window.jawataHostCall === 'function') {
   begin();
 } else {

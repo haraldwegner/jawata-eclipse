@@ -40,4 +40,5 @@ Import-Package: org.eclipse.core.commands.operations,
  org.osgi.framework,
  org.osgi.framework.namespace,
  org.osgi.framework.wiring,
+ org.osgi.service.prefs,
  org.osgi.util.tracker
