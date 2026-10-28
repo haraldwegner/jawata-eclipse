@@ -391,12 +391,12 @@ for pkg in java rcp; do
     esac
     # P23 (plan Stage 23, spec D10, his pick of 2026-10-28): in this download the chat is one view that opens where the person chose, in the
     # editor area in the middle or in a side panel, each loading the chat and taking a chat command; the first opening asks once and keeps
-    # the answer; a closed chat opens again where it was chosen and an open one stays (ChatPlacementsTest, 7 tests). And the chat reopens
+    # the answer; a closed chat opens again where it was chosen and an open one stays (ChatPlacementsTest, 10 tests). And the chat reopens
     # the conversation the person had last when they want that, remembering the one a prompt, load or resume belongs to, with both
     # choices on the preference page (ChatLastConversationTest, 5 tests).
     placements="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.ChatPlacementsTest$' "$tests_out" | head -1)"
     case "$placements" in
-        "Tests run: 7, Failures: 0, Errors: 0"*) ok "P23 $pkg: the chat view opens in the middle or in a side panel as chosen, loads and takes a command in each, asks once on first opening, opens again where it was chosen after a close, stays where it is while open, and the saved layout holds it with its mark (${placements%%,*})" ;;
+        "Tests run: 10, Failures: 0, Errors: 0"*) ok "P23 $pkg: the chat view opens in the middle or in a side panel as chosen, loads and takes a command in each, the real first-run question has two buttons that each choose their place and asks once, a chat closed from the middle opens in a side panel when that is now chosen, a chat that carries the saved mark is not moved, an open chat stays, and the saved layout holds the view with its mark (${placements%%,*})" ;;
         *) fail "P23 $pkg: the chat placement tests did not pass in this download (${placements:-they did not run})" ;;
     esac
     lastconv="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.ChatLastConversationTest$' "$tests_out" | head -1)"

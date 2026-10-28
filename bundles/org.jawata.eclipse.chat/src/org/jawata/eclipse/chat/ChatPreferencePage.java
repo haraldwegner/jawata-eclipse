@@ -137,10 +137,11 @@ public final class ChatPreferencePage extends PreferencePage implements IWorkben
         node.put(PreferencesChatSettings.AGENT, agent.getText().trim());
         node.put(PreferencesChatSettings.WORKING_FOLDER, folder.getText().trim());
         node.putBoolean(PreferencesChatSettings.CONTINUE_LAST_CONVERSATION, continueLast.getSelection());
+        // the placement key has one owner, which also writes it
         switch (placement.getSelectionIndex()) {
-            case 1 -> node.put(PreferencesChatSettings.PLACEMENT, ChatPlacementChoice.Where.EDITOR_AREA.stored());
-            case 2 -> node.put(PreferencesChatSettings.PLACEMENT, ChatPlacementChoice.Where.SIDE_PANEL.stored());
-            default -> node.remove(PreferencesChatSettings.PLACEMENT);
+            case 1 -> ChatPlacementChoice.choose(ChatPlacementChoice.Where.EDITOR_AREA);
+            case 2 -> ChatPlacementChoice.choose(ChatPlacementChoice.Where.SIDE_PANEL);
+            default -> ChatPlacementChoice.askAgain();
         }
         try {
             node.flush();

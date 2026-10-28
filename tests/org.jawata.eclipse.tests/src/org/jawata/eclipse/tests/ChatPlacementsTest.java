@@ -31,7 +31,11 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IWorkbenchPage;
@@ -306,6 +310,122 @@ public class ChatPlacementsTest {
         run(ChatCommandHandler.OPEN_CHAT);
         assertEquals(view, UiThread.call(() -> page.findView(ChatView.ID)), "the open command shows the chat that is open");
         assertFalse(UiThread.call(() -> inTheEditorArea(view)), "and does not move it");
+    }
+
+    @Test
+    public void aChatThatAlreadyCarriesTheMarkIsNotPlacedWhenItIsCreated() throws Exception {
+        // a restored chat is created with the mark its saved layout holds; it stays where the person had it, whatever the preference now says
+        putBack = ChatPlacementSetup.choose(Where.SIDE_PANEL);
+        IWorkbenchPage page = UiThread.call(ChatPlacementsTest::activePage);
+        // Eclipse opens a view where it last was, so the last place is first made a side panel: only the guard can then keep the marked chat there
+        ChatView settled = open(page);
+        MPart entry = UiThread.call(() -> partOf(settled));
+        Await.found("the chat outside the editor area", () -> UiThread.call(() -> inTheEditorArea(settled)) ? Optional.empty() : Optional.of(true));
+        UiThread.call(() -> {
+            page.hideView(page.findViewReference(ChatView.ID));
+            return null;
+        });
+        ChatPlacementChoice.choose(Where.EDITOR_AREA);
+        // the closed chat's model entry is kept and reused when it opens again; with the mark back on it, the chat is created as a restored one is
+        UiThread.call(() -> {
+            entry.getPersistedState().put(PLACED, "yes");
+            return null;
+        });
+        ChatView view = open(page);
+        awaitChat(browserOf(view.page()), "restored chat");
+        assertFalse(UiThread.call(() -> inTheEditorArea(view)), "a chat that carries the mark is not moved to the middle");
+    }
+
+    @Test
+    public void aChatClosedFromTheMiddleOpensInASidePanelWhenThePreferenceIsNowTheSidePanel() throws Exception {
+        putBack = ChatPlacementSetup.choose(Where.EDITOR_AREA);
+        IWorkbenchPage page = UiThread.call(ChatPlacementsTest::activePage);
+        ChatView first = open(page);
+        awaitInTheEditorArea(first);
+        UiThread.call(() -> {
+            page.hideView(page.findViewReference(ChatView.ID));
+            return null;
+        });
+        // Eclipse opens a view where it last was, which is the middle; the preference decides, so the chat is sent out
+        ChatPlacementChoice.choose(Where.SIDE_PANEL);
+        ChatView second = open(page);
+        Await.found("the chat outside the editor area", () -> UiThread.call(() -> inTheEditorArea(second)) ? Optional.empty() : Optional.of(true));
+    }
+
+    /** Finds a button of a window by its text. */
+    private static Button findButton(Control control, String text) {
+        if (control instanceof Button button && text.equals(button.getText().replace("&", ""))) {
+            return button;
+        }
+        if (control instanceof Composite composite) {
+            for (Control child : composite.getChildren()) {
+                Button found = findButton(child, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Answers the first-run question as a person would once it shows: presses the named button, or closes the window when no name is given. */
+    private static void answerTheQuestion(String button) {
+        Display display = Display.getDefault();
+        UiThread.call(() -> {
+            Runnable poll = new Runnable() {
+                private int tries;
+
+                @Override
+                public void run() {
+                    for (Shell shell : display.getShells()) {
+                        if ("Where should the jawata chat open?".equals(shell.getText())) {
+                            if (button == null) {
+                                shell.close();
+                                return;
+                            }
+                            Button found = findButton(shell, button);
+                            if (found != null) {
+                                found.notifyListeners(SWT.Selection, new Event());
+                                return;
+                            }
+                        }
+                    }
+                    if (++tries < 400) {
+                        display.timerExec(50, this);
+                    }
+                }
+            };
+            display.timerExec(50, poll);
+            return null;
+        });
+    }
+
+    @Test
+    public void theFirstQuestionHasTwoButtonsAndEachOneChoosesItsPlace() throws Exception {
+        putBack = ChatPlacementSetup.choose(Where.SIDE_PANEL);
+        IWorkbenchPage page = UiThread.call(ChatPlacementsTest::activePage);
+        String[] buttons = { "In the middle", "In a side panel" };
+        Where[] places = { Where.EDITOR_AREA, Where.SIDE_PANEL };
+        for (int i = 0; i < buttons.length; i++) {
+            ChatPlacementChoice.askAgain();
+            answerTheQuestion(buttons[i]);
+            ChatView view = open(page);
+            Optional<Where> expected = Optional.of(places[i]);
+            Await.found("the answer \"" + buttons[i] + "\" kept", () -> expected.equals(ChatPlacementChoice.chosen()) ? Optional.of(true) : Optional.empty());
+            boolean inTheMiddle = places[i] == Where.EDITOR_AREA;
+            Await.found("the chat " + (inTheMiddle ? "in" : "outside") + " the editor area",
+                () -> UiThread.call(() -> inTheEditorArea(view)) == inTheMiddle ? Optional.of(true) : Optional.empty());
+            UiThread.call(() -> {
+                page.hideView(page.findViewReference(ChatView.ID));
+                return null;
+            });
+        }
+        // a person who closes the question without answering gets the chat in the middle, and is asked again
+        ChatPlacementChoice.askAgain();
+        answerTheQuestion(null);
+        ChatView view = open(page);
+        awaitInTheEditorArea(view);
+        assertEquals(Optional.empty(), ChatPlacementChoice.chosen(), "nothing was chosen by closing the question");
     }
 
     @Test
