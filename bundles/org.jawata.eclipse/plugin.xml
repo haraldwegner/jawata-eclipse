@@ -55,4 +55,55 @@
    <extension point="org.eclipse.core.runtime.preferences">
       <initializer class="org.jawata.eclipse.host.EnginePreferenceInitializer"/>
    </extension>
+   <!-- Spec D14, plan Stage 13b: comments and suggested changes in a Markdown file, written as plain-text CriticMarkup and shown as callouts
+        in the preview. Five commands on the editor, in its context menu; only the person runs them, and each edits the open text and nothing
+        else. -->
+   <extension point="org.eclipse.ui.commands">
+      <command id="org.jawata.eclipse.specs.comment" name="Comment"
+               description="Writes your comment after the selected text, as a {&gt;&gt; ... &lt;&lt;} mark in the file.">
+         <commandParameter id="org.jawata.eclipse.specs.text" name="Comment" optional="true"/>
+      </command>
+      <command id="org.jawata.eclipse.specs.suggestChange" name="Suggest change"
+               description="Marks the selected text as removed and opens an addition after it, as {-- ... --}{++ ... ++} marks in the file.">
+         <commandParameter id="org.jawata.eclipse.specs.text" name="Addition" optional="true"/>
+      </command>
+      <command id="org.jawata.eclipse.specs.accept" name="Accept change"
+               description="Accepts the comment or suggested change at the cursor: an addition becomes text, a removal takes its text out."/>
+      <command id="org.jawata.eclipse.specs.reject" name="Reject change"
+               description="Rejects the suggested change at the cursor: an addition is dropped, a removal keeps its text."/>
+      <command id="org.jawata.eclipse.specs.resolve" name="Resolve comment"
+               description="Removes the comment at the cursor from the file."/>
+   </extension>
+   <extension point="org.eclipse.ui.handlers">
+      <handler commandId="org.jawata.eclipse.specs.comment" class="org.jawata.eclipse.specs.CalloutCommandHandler">
+         <activeWhen><with variable="activeEditorId"><equals value="org.jawata.eclipse.specs.markdownEditor"/></with></activeWhen>
+      </handler>
+      <handler commandId="org.jawata.eclipse.specs.suggestChange" class="org.jawata.eclipse.specs.CalloutCommandHandler">
+         <activeWhen><with variable="activeEditorId"><equals value="org.jawata.eclipse.specs.markdownEditor"/></with></activeWhen>
+      </handler>
+      <handler commandId="org.jawata.eclipse.specs.accept" class="org.jawata.eclipse.specs.CalloutCommandHandler">
+         <activeWhen><with variable="activeEditorId"><equals value="org.jawata.eclipse.specs.markdownEditor"/></with></activeWhen>
+      </handler>
+      <handler commandId="org.jawata.eclipse.specs.reject" class="org.jawata.eclipse.specs.CalloutCommandHandler">
+         <activeWhen><with variable="activeEditorId"><equals value="org.jawata.eclipse.specs.markdownEditor"/></with></activeWhen>
+      </handler>
+      <handler commandId="org.jawata.eclipse.specs.resolve" class="org.jawata.eclipse.specs.CalloutCommandHandler">
+         <activeWhen><with variable="activeEditorId"><equals value="org.jawata.eclipse.specs.markdownEditor"/></with></activeWhen>
+      </handler>
+   </extension>
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+         <menu id="org.jawata.eclipse.specs.callouts" label="Comments and changes">
+            <command commandId="org.jawata.eclipse.specs.comment" label="Comment..." style="push"/>
+            <command commandId="org.jawata.eclipse.specs.suggestChange" label="Suggest change..." style="push"/>
+            <separator name="resolution" visible="true"/>
+            <command commandId="org.jawata.eclipse.specs.accept" label="Accept" style="push"/>
+            <command commandId="org.jawata.eclipse.specs.reject" label="Reject" style="push"/>
+            <command commandId="org.jawata.eclipse.specs.resolve" label="Resolve comment" style="push"/>
+            <visibleWhen checkEnabled="false">
+               <with variable="activeEditorId"><equals value="org.jawata.eclipse.specs.markdownEditor"/></with>
+            </visibleWhen>
+         </menu>
+      </menuContribution>
+   </extension>
 </plugin>

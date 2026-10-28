@@ -100,7 +100,7 @@ public class WikiTextShowsSpecsTest {
     }
 
     /** Opens the file in a page with no other editor, the way a person double-clicks it; answers the editor's id. */
-    private static String open(IFile file) {
+    static String open(IFile file) {
         AtomicReference<String> editorId = new AtomicReference<>();
         Display.getDefault().syncExec(() -> {
             try {
@@ -119,7 +119,7 @@ public class WikiTextShowsSpecsTest {
     }
 
     /** The editor builds its Source and Preview tabs once the workbench has laid it out: wait for them, up to ten seconds. */
-    private static List<String> waitForTabs() throws InterruptedException {
+    static List<String> waitForTabs() throws InterruptedException {
         AtomicReference<List<String>> tabs = new AtomicReference<>(List.of());
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         do {
@@ -132,6 +132,11 @@ public class WikiTextShowsSpecsTest {
 
     /** Selects the Preview tab as a click does, then reads what its browser shows, waiting up to ten seconds for the tables. */
     private static String previewHtmlShown(int tables) throws InterruptedException {
+        return previewHtmlWhen(html -> count(html, "<table") >= tables);
+    }
+
+    /** Selects the Preview tab as a click does, then reads what its browser shows, waiting up to ten seconds for the page to be what is wanted. */
+    static String previewHtmlWhen(java.util.function.Predicate<String> ready) throws InterruptedException {
         Display.getDefault().syncExec(() -> {
             for (CTabFolder folder : folders(shell())) {
                 for (CTabItem item : folder.getItems()) {
@@ -153,7 +158,7 @@ public class WikiTextShowsSpecsTest {
                 assertNotNull(browser, "the Preview tab holds a browser");
                 html.set(String.valueOf(browser.getText()));
             });
-        } while (count(html.get(), "<table") < tables && System.nanoTime() < deadline);
+        } while (!ready.test(html.get()) && System.nanoTime() < deadline);
         return html.get();
     }
 
@@ -205,7 +210,7 @@ public class WikiTextShowsSpecsTest {
         return null;
     }
 
-    private static IFile copyIntoWorkspace(String name, String text) throws Exception {
+    static IFile copyIntoWorkspace(String name, String text) throws Exception {
         IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject("d6");
         if (!project.exists()) { project.create(null); }
         if (!project.isOpen()) { project.open(null); }
