@@ -16,12 +16,20 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.jface.text,
  org.eclipse.mylyn.wikitext,
  org.eclipse.mylyn.wikitext.markdown,
- org.eclipse.mylyn.wikitext.ui
+ org.eclipse.mylyn.wikitext.ui,
+ org.eclipse.jdt.core,
+ org.eclipse.jdt.launching
 Import-Package: org.commonmark.ext.gfm.tables;version="[0.30.0,1.0.0)",
  org.commonmark.node;version="[0.30.0,1.0.0)",
  org.commonmark.parser;version="[0.30.0,1.0.0)",
  org.eclipse.ltk.core.refactoring,
+ org.jawata.core,
+ org.jawata.core.host,
+ org.jawata.core.project,
+ org.jawata.core.search,
  org.jawata.mcp.engine;version="[1.0,2.0)",
- org.jawata.spi.host;version="[1.0,2.0)"
+ org.jawata.spi.host;version="[1.0,2.0)",
+ org.jawata.spi.lang;version="[1.0,2.0)"
 Export-Package: org.jawata.eclipse.host;x-friends:="org.jawata.eclipse.tests",
+ org.jawata.eclipse.java;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.specs

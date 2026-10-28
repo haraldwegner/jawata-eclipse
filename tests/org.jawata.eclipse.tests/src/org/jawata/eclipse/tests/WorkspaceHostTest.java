@@ -10,7 +10,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspace;
@@ -34,25 +33,10 @@ public class WorkspaceHostTest {
 
     private static final IWorkspace WORKSPACE = ResourcesPlugin.getWorkspace();
 
-    private static IProject newProject(String prefix) throws CoreException {
-        IProject project = WORKSPACE.getRoot().getProject(prefix + UUID.randomUUID());
-        project.create(null);
-        project.open(null);
-        return project;
-    }
-
-    private static void deleteQuietly(IProject project) {
-        try {
-            project.delete(true, true, null);
-        } catch (CoreException e) {
-            // a project that cannot be removed is left to the workspace's own cleanup
-        }
-    }
-
     @Test
     public void theFoldersAreTheWorkspacesProjectsWithTheirOpenState() throws Exception {
-        IProject open = newProject("jawata-open-");
-        IProject closed = newProject("jawata-closed-");
+        IProject open = WorkspaceProjects.open("jawata-open-");
+        IProject closed = WorkspaceProjects.open("jawata-closed-");
         try {
             closed.close(null);
             EclipseWorkspace workspace = new EclipseWorkspace(WORKSPACE.getRoot());
@@ -66,8 +50,7 @@ public class WorkspaceHostTest {
             assertEquals(Path.of(open.getLocation().toOSString()), seenOpen.path());
             assertFalse(workspace.ownsWorkspace(), "Eclipse owns the workspace; the engine follows it");
         } finally {
-            deleteQuietly(open);
-            deleteQuietly(closed);
+            WorkspaceProjects.deleteQuietly(open, closed);
         }
     }
 
@@ -85,7 +68,7 @@ public class WorkspaceHostTest {
 
     @Test
     public void aFileChangedOutsideEclipseIsReportedOnceAndThenNotAgain() throws Exception {
-        IProject project = newProject("jawata-sync-");
+        IProject project = WorkspaceProjects.open("jawata-sync-");
         try (EclipseReconciler reconciler = new EclipseReconciler(WORKSPACE)) {
             reconciler.syncBeforeCall();
             Path file = Path.of(project.getLocation().toOSString()).resolve("Outside.txt");
@@ -98,7 +81,7 @@ public class WorkspaceHostTest {
             assertTrue(first.reconciled());
             assertFalse(second.refreshedPaths().contains(file.toString()), "and it is not reported a second time");
         } finally {
-            deleteQuietly(project);
+            WorkspaceProjects.deleteQuietly(project);
         }
     }
 
@@ -106,21 +89,21 @@ public class WorkspaceHostTest {
     public void aProjectAddedToTheWorkspaceIsCounted() throws Exception {
         try (EclipseReconciler reconciler = new EclipseReconciler(WORKSPACE)) {
             reconciler.syncBeforeCall();
-            IProject project = newProject("jawata-added-");
+            IProject project = WorkspaceProjects.open("jawata-added-");
             try {
                 SyncReport report = reconciler.syncBeforeCall();
 
                 assertTrue(report.newProjects() >= 1, "the new project is counted: " + report);
             } finally {
-                deleteQuietly(project);
+                WorkspaceProjects.deleteQuietly(project);
             }
         }
     }
 
     @Test
     public void aRebuildNamesOnlyTheProjectsItBuilt() throws Exception {
-        IProject open = newProject("jawata-build-");
-        IProject closed = newProject("jawata-notbuilt-");
+        IProject open = WorkspaceProjects.open("jawata-build-");
+        IProject closed = WorkspaceProjects.open("jawata-notbuilt-");
         try (EclipseReconciler reconciler = new EclipseReconciler(WORKSPACE)) {
             closed.close(null);
 
@@ -129,8 +112,7 @@ public class WorkspaceHostTest {
 
             assertEquals(Set.of(open.getName()), built, "a closed project and an unknown name are left out, never answered as built");
         } finally {
-            deleteQuietly(open);
-            deleteQuietly(closed);
+            WorkspaceProjects.deleteQuietly(open, closed);
         }
     }
 }
