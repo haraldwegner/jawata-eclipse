@@ -73,7 +73,9 @@ public final class EclipseWrites implements WorkspaceWrites {
             }
             try {
                 String charset = file.exists() ? file.getCharset() : StandardCharsets.UTF_8.name();
-                if (!StandardCharsets.UTF_8.name().equalsIgnoreCase(charset)) {
+                // A file in another encoding is only at risk when it holds bytes outside ASCII: a pure ASCII file reads the same in every
+                // encoding, so a workspace whose default is not UTF-8 (the Windows default) does not refuse every file.
+                if (!StandardCharsets.UTF_8.name().equalsIgnoreCase(charset) && hasNonAscii(file)) {
                     return Optional.of(CHARSET_NOT_UTF8 + ": " + file.getFullPath() + " is " + charset + ", and jawata rewrites only UTF-8 files. "
                         + "Nothing was changed.");
                 }
@@ -83,6 +85,20 @@ public final class EclipseWrites implements WorkspaceWrites {
             }
         }
         return Optional.empty();
+    }
+
+    /** Whether the file holds any byte outside ASCII; a file that cannot be read counts as holding one, so it is refused and not guessed at. */
+    private static boolean hasNonAscii(IFile file) {
+        try (java.io.InputStream in = file.getContents()) {
+            for (int b = in.read(); b != -1; b = in.read()) {
+                if (b >= 0x80) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (CoreException | java.io.IOException unreadable) {
+            return true;
+        }
     }
 
     /** The files a change acts on, read from the change itself, so the check is made before anything is written. */

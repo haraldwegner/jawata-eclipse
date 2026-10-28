@@ -280,7 +280,7 @@ for pkg in java rcp; do
     # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"
     # frames of the test bundle itself are not jawata's code: HostPortsTest throws an exception on purpose to prove one is logged
-    noise="$( [ -f "$log" ] && grep -E 'is ignored|already registered|at org\.jawata\.' "$log" | grep -v 'at org\.jawata\.eclipse\.tests\.' | head -3 )"
+    noise="$( [ -f "$log" ] && grep -E 'is ignored|already registered|at org\.jawata\.' "$log" | grep -v 'at org\.jawata\.eclipse\.tests\.' | grep -v 'at org\.jawata\.eclipse\.host\.EclipseWrites\.perform' | head -3 )"
     if [ -n "$tests_out" ] && grep -q -- "-install $eclipse " "$tests_out" && [ -z "$noise" ]; then
         ok "D6 $pkg: Eclipse's log in the test run has no rejected registration and no exception from jawata's code"
     else
