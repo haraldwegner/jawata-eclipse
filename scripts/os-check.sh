@@ -58,7 +58,7 @@ desktop="${XDG_SESSION_TYPE:-none (virtual screen only)}"
     echo
     echo "## Not covered by this run"
     echo
-    echo "- Restart Eclipse and see the chat where it was and the last conversation reopened (plan Stage 23's open gate)."
+    echo "- After a restart the last conversation reopening (the chat being where it was is P24 above; reopening needs a real agent, plan 21.15)."
     echo "- The callouts for D14's fixture and the commit draft with HEAD unchanged (waiting for the signed Amendment 1; stages 13b and 22b)."
     echo "- R1 and a chat turn that calls a jawata tool in the real chat (plan 21.15)."
     echo "- Windows and macOS: run by Harald."

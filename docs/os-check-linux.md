@@ -1,9 +1,9 @@
 # os-check on linux
 
-- started: 2026-10-28T15:21:35Z (UTC)
+- started: 2026-10-28T16:00:34Z (UTC)
 - machine: Linux 7.0.9-76070009-generic, x86_64; the run used Xvfb, a virtual screen; the desktop the person sits at: x11
-- plug-in commit: 9041d22 (working tree has uncommitted changes)
-- exit code of scripts/28k-e2e.sh: 0; promises passed: 94; failed: 0
+- plug-in commit: 8bfb1b2 (working tree has uncommitted changes)
+- exit code of scripts/28k-e2e.sh: 0; promises passed: 96; failed: 0
 
 ## What the run said
 
@@ -79,6 +79,7 @@
   ok    P20 java: one Eclipse open: studio's reader shows 1 running Eclipse workspace, no switch, no note deleted
   ok    P20 java: after that Eclipse closed, studio still lists its workspace, not running (it remembered it)
   ok    P20 java: two Eclipse instances open and one closed: studio answers 2 running, 1 not running, no switch on any, the tray rows are the list's rows (3 rows)
+  ok    P24 java: the chat was opened in the middle, the layout Eclipse wrote on exit holds the view and its mark, and after a real restart the chat was on screen without anyone opening it (picture 5 of session 2, 10 s after the start)
   ok    P13 rcp: the update site installs (director), org.jawata.eclipse.feature.feature.group is an installed root
   ok    P13 rcp: Eclipse starts in Xvfb, the workbench is ACTIVE; both org.jawata bundles, WikiText's Markdown editor and the Terminal's local shell are resolved
   ok    P15 rcp: in that started Eclipse the eight engine bundles and libraries (spi, core, mcp, catalogue, H2, Jackson x3) are resolved on its own JDT, LTK and JaCoCo
@@ -102,11 +103,12 @@
   ok    P20 rcp: one Eclipse open: studio's reader shows 1 running Eclipse workspace, no switch, no note deleted
   ok    P20 rcp: after that Eclipse closed, studio still lists its workspace, not running (it remembered it)
   ok    P20 rcp: two Eclipse instances open and one closed: studio answers 2 running, 1 not running, no switch on any, the tray rows are the list's rows (3 rows)
+  ok    P24 rcp: the chat was opened in the middle, the layout Eclipse wrote on exit holds the view and its mark, and after a real restart the chat was on screen without anyone opening it (picture 5 of session 2, 10 s after the start)
 ```
 
 ## Not covered by this run
 
-- Restart Eclipse and see the chat where it was and the last conversation reopened (plan Stage 23's open gate).
+- After a restart the last conversation reopening (the chat being where it was is P24 above; reopening needs a real agent, plan 21.15).
 - The callouts for D14's fixture and the commit draft with HEAD unchanged (waiting for the signed Amendment 1; stages 13b and 22b).
 - R1 and a chat turn that calls a jawata tool in the real chat (plan 21.15).
 - Windows and macOS: run by Harald.

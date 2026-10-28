@@ -418,6 +418,11 @@ for pkg in java rcp; do
     fi
     p16 "$pkg" "$eclipse" "$run"
     p20 "$pkg" "$eclipse" "$run"
+    # P24 (plan Stage 24, Stage 23's open gate): a REAL restart of this Eclipse keeps the chat where it was. scripts/restart-check.sh opens
+    # the chat in the middle, closes Eclipse, starts it again on the same workspace and looks at the screen. Not part of it: the last
+    # conversation reopening (that needs a real agent, plan 21.15).
+    restart_out="$(bash "$here/scripts/restart-check.sh" "$eclipse" "$run/restart" 2>&1)"; restart_rc=$?
+    if [ "$restart_rc" = 0 ]; then ok "P24 $pkg: ${restart_out#restart-check: ok }"; else fail "P24 $pkg: ${restart_out:-the restart check printed nothing}"; fi
 done
 
 echo
