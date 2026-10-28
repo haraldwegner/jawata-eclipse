@@ -19,5 +19,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.mylyn.wikitext.ui
 Import-Package: org.commonmark.ext.gfm.tables;version="[0.30.0,1.0.0)",
  org.commonmark.node;version="[0.30.0,1.0.0)",
- org.commonmark.parser;version="[0.30.0,1.0.0)"
-Export-Package: org.jawata.eclipse.specs
+ org.commonmark.parser;version="[0.30.0,1.0.0)",
+ org.jawata.mcp.engine;version="[1.0,2.0)",
+ org.jawata.spi.host;version="[1.0,2.0)"
+Export-Package: org.jawata.eclipse.host;x-friends:="org.jawata.eclipse.tests",
+ org.jawata.eclipse.specs
