@@ -423,6 +423,10 @@ for pkg in java rcp; do
     # conversation reopening (that needs a real agent, plan 21.15).
     restart_out="$(bash "$here/scripts/restart-check.sh" "$eclipse" "$run/restart" 2>&1)"; restart_rc=$?
     if [ "$restart_rc" = 0 ]; then ok "P24 $pkg: ${restart_out#restart-check: ok }"; else fail "P24 $pkg: ${restart_out:-the restart check printed nothing}"; fi
+    # and the first-run question is really on screen the first time the chat is opened, its first button is kept, and a stored choice does
+    # not ask again (scripts/first-run-check.sh)
+    firstrun_out="$(bash "$here/scripts/first-run-check.sh" "$eclipse" "$run/first-run" 2>&1)"; firstrun_rc=$?
+    if [ "$firstrun_rc" = 0 ]; then ok "P24 $pkg: ${firstrun_out#first-run-check: ok }"; else fail "P24 $pkg: ${firstrun_out:-the first-run check printed nothing}"; fi
 done
 
 echo
