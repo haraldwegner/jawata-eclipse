@@ -261,6 +261,13 @@ for pkg in java rcp; do
         *"$want"*) ok "D2 $pkg: the read-only run's Maven, Gradle and plug-in fixtures had their real natures in this download ($natures)" ;;
         *) fail "D2 $pkg: the fixtures did not have the real natures this download should carry (wanted $want; ${natures:-the test printed none})" ;;
     esac
+    # P17 (plan Stage 17, spec D5): in this download the preference page lists every setting of the engine, and a value typed on it
+    # and saved shows in the next health_check answer of a client that connects with no key (JawataPreferencePageTest, 3 tests)
+    prefs="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.JawataPreferencePageTest' "$tests_out" | head -1)"
+    case "$prefs" in
+        "Tests run: 3, Failures: 0, Errors: 0"*) ok "P17 $pkg: the preference page shows every setting of the engine, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (3 of 3)" ;;
+        *) fail "P17 $pkg: the preference page tests did not pass in this download (${prefs:-they did not run})" ;;
+    esac
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
     # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"

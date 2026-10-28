@@ -65,6 +65,58 @@ public class JawataPreferencePageTest {
         }
     }
 
+    /** The first scrolled area inside a control, which is where the page's form lives. */
+    private static org.eclipse.swt.custom.ScrolledComposite scrolledAreaIn(org.eclipse.swt.widgets.Control control) {
+        if (control instanceof org.eclipse.swt.custom.ScrolledComposite scrolled) {
+            return scrolled;
+        }
+        if (control instanceof org.eclipse.swt.widgets.Composite composite) {
+            for (org.eclipse.swt.widgets.Control child : composite.getChildren()) {
+                org.eclipse.swt.custom.ScrolledComposite found = scrolledAreaIn(child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    @Test
+    public void thePageIsReachableByScrollingAndIsRendered() throws Exception {
+        Opened opened = open();
+        try {
+            java.nio.file.Path picture = java.nio.file.Path.of(System.getProperty("jawata.ux.dir", System.getProperty("java.io.tmpdir")),
+                "preference-page.png");
+            AtomicReference<Boolean> reachable = new AtomicReference<>(false);
+            onUserInterface(() -> {
+                opened.shell().setLayout(new org.eclipse.swt.layout.FillLayout());
+                opened.shell().setSize(640, 480);
+                opened.shell().open();
+                opened.shell().layout(true, true);
+                org.eclipse.swt.custom.ScrolledComposite scroll = scrolledAreaIn(opened.page().getControl());
+                reachable.set(scroll != null && scroll.getVerticalBar() != null && scroll.getVerticalBar().isVisible()
+                    && scroll.getVerticalBar().getMaximum() > scroll.getVerticalBar().getThumb());
+                org.eclipse.swt.widgets.Display display = opened.shell().getDisplay();
+                while (display.readAndDispatch()) {
+                    // let the page paint before it is copied
+                }
+                org.eclipse.swt.graphics.Image image = new org.eclipse.swt.graphics.Image(display, opened.shell().getBounds());
+                org.eclipse.swt.graphics.GC gc = new org.eclipse.swt.graphics.GC(display);
+                gc.copyArea(image, opened.shell().getBounds().x, opened.shell().getBounds().y);
+                gc.dispose();
+                org.eclipse.swt.graphics.ImageLoader loader = new org.eclipse.swt.graphics.ImageLoader();
+                loader.data = new org.eclipse.swt.graphics.ImageData[] { image.getImageData() };
+                loader.save(picture.toString(), org.eclipse.swt.SWT.IMAGE_PNG);
+                image.dispose();
+            });
+            assertTrue(reachable.get(), "the form is taller than the page and scrolls, so every setting can be reached");
+            assertTrue(java.nio.file.Files.size(picture) > 0, "and a picture of the page was saved at " + picture);
+            System.out.println("jawata-ux picture " + picture);
+        } finally {
+            onUserInterface(opened.shell()::dispose);
+        }
+    }
+
     @Test
     public void aValueTypedOnThePageIsWhatTheEngineReadsAndShowsInAToolAnswer() throws Exception {
         EclipseEngine engine = Await.found("the workbench started the engine", EngineStartup::running);
