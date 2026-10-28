@@ -123,8 +123,11 @@ public class HostPortsTest {
         String node = "org.jawata.eclipse.tests.settings." + UUID.randomUUID();
         IEclipsePreferences preferences = InstanceScope.INSTANCE.getNode(node);
         try {
-            EclipseSettings settings = new EclipseSettings(preferences, Map.of("jawata.runtime.dir", "/state/runtime"),
-                key -> "osgi.instance.area".equals(key) ? "file:/workspace/" : null);
+            EclipseSettings settings = new EclipseSettings(preferences,
+                Map.of("jawata.runtime.dir", "/state/runtime", "jawata.launched.too", "/default"),
+                key -> "osgi.instance.area".equals(key) ? "file:/workspace/" : "jawata.launched.too".equals(key) ? "/launched" : null);
+
+            assertEquals(Optional.of("/launched"), settings.get("jawata.launched.too"), "a property given at launch beats the host default");
 
             assertEquals(Optional.of("/state/runtime"), settings.get("jawata.runtime.dir"), "the host default when nothing is set");
             preferences.put("jawata.runtime.dir", "/chosen");

@@ -52,6 +52,11 @@ public final class JawataPreferencePage extends PreferencePage implements IWorkb
         for (SettingKey key : SettingKeys.all()) {
             String standing = defaults.get(key.name(), key.fallback());
             String explanation = key.meaning() + " Default: " + standing + ".";
+            String launched = System.getProperty(key.name());
+            if (launched != null) {
+                // what applies when this field is empty is not the default: Eclipse was started with a value for it
+                explanation += " Eclipse was started with -D" + key.name() + "=" + launched + ", which applies until a value is typed here.";
+            }
             Label name = new Label(form, SWT.NONE);
             name.setText(key.name());
             name.setToolTipText(explanation);

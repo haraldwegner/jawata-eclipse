@@ -9,9 +9,10 @@ import org.jawata.spi.host.EngineSettings;
 
 /**
  * The engine's settings inside Eclipse (plan Stage 16, spec D5): every setting is an Eclipse preference, so the answer is the
- * preference when the person set one, else the host's own default (the folders under the plug-in's state area), else the OSGi
- * framework's property of that name ({@code osgi.instance.area}, which the engine reads to find the workspace). The preference pages
- * that let the person set them are Stage 17.
+ * preference when the person set one, else the property of that name given when Eclipse was started ({@code -D}, and the framework's
+ * own such as {@code osgi.instance.area}, which the engine reads to find the workspace), else the host's own default (the folders
+ * under the plug-in's state area, which the plug-in's preference initializer supplies). The person sets them on the one preference
+ * page the plug-in adds (Stage 17).
  */
 public final class EclipseSettings implements EngineSettings {
 
@@ -36,10 +37,10 @@ public final class EclipseSettings implements EngineSettings {
         if (chosen != null) {
             return Optional.of(chosen);
         }
-        String dflt = defaults.get(key);
-        if (dflt != null) {
-            return Optional.of(dflt);
+        String launched = frameworkProperty.apply(key);
+        if (launched != null) {
+            return Optional.of(launched);
         }
-        return Optional.ofNullable(frameworkProperty.apply(key));
+        return Optional.ofNullable(defaults.get(key));
     }
 }

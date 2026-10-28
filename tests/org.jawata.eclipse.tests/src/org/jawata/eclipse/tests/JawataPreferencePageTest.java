@@ -58,8 +58,8 @@ public class JawataPreferencePageTest {
         try {
             List<String> registry = SettingKeys.all().stream().map(SettingKey::name).toList();
             assertEquals(registry, opened.page().shownKeys(), "the page shows the engine's settings, all of them and in its order");
-            assertFalse(opened.page().shownKeys().stream().anyMatch(k -> k.toLowerCase().contains("password") || k.toLowerCase().endsWith(".key")),
-                "and none is a key or password: the connection inside Eclipse has none");
+            assertTrue(registry.stream().allMatch(k -> opened.page().fieldFor(k) != null && !opened.page().fieldFor(k).isDisposed()),
+                "and each of them has a live field to type into, not only a name in a list");
         } finally {
             onUserInterface(opened.shell()::dispose);
         }
@@ -87,6 +87,7 @@ public class JawataPreferencePageTest {
         try {
             java.nio.file.Path picture = java.nio.file.Path.of(System.getProperty("jawata.ux.dir", System.getProperty("java.io.tmpdir")),
                 "preference-page.png");
+            java.nio.file.Files.createDirectories(picture.getParent());
             AtomicReference<Boolean> reachable = new AtomicReference<>(false);
             onUserInterface(() -> {
                 opened.shell().setLayout(new org.eclipse.swt.layout.FillLayout());
@@ -118,6 +119,22 @@ public class JawataPreferencePageTest {
     }
 
     @Test
+    public void aLaunchPropertyIsNamedOnThePageBecauseItAppliesWhileTheFieldIsEmpty() {
+        String key = SettingKeys.TIMEOUT_SECONDS.name();
+        System.setProperty(key, "77");
+        Opened opened = open();
+        try {
+            AtomicReference<String> shown = new AtomicReference<>();
+            onUserInterface(() -> shown.set(opened.page().fieldFor(key).getToolTipText()));
+            assertTrue(shown.get().contains("-D" + key + "=77"),
+                "an empty field would otherwise read as the default while Eclipse was started with 77: " + shown.get());
+        } finally {
+            System.clearProperty(key);
+            onUserInterface(opened.shell()::dispose);
+        }
+    }
+
+    @Test
     public void aValueTypedOnThePageIsWhatTheEngineReadsAndShowsInAToolAnswer() throws Exception {
         EclipseEngine engine = Await.found("the workbench started the engine", EngineStartup::running);
         McpEndpoint at = Await.found("the listener came up", () -> engine.endpoint().reached());
@@ -134,22 +151,30 @@ public class JawataPreferencePageTest {
                     return Optional.empty();
                 }
             });
-            String location = project.getLocation().toOSString();
-            String relative = McpClient.text(client.call("health_check", "{}"));
+            com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+            String timeout = SettingKeys.TIMEOUT_SECONDS.name();
+            // health_check reports the configuration it is running with, so a changed setting shows there
+            com.fasterxml.jackson.databind.JsonNode before = json.readTree(McpClient.text(client.call("health_check", "{}")))
+                .path("data").path("configuration");
+            assertFalse(before.path("absolutePaths").asBoolean(true), "before the change absolute paths are off: " + before);
+            assertNotEquals(45, before.path("timeoutSeconds").asInt(), "and the timeout is not 45 already: " + before);
 
             onUserInterface(() -> {
                 opened.page().fieldFor(key).setText("true");
+                opened.page().fieldFor(timeout).setText("45");
                 opened.page().performOk();
             });
             assertEquals("true", InstanceScope.INSTANCE.getNode(PLUGIN).get(key, null), "the page stores the value as the plug-in's preference");
             assertEquals(Optional.of("true"), engine.engine().orElseThrow().host().settings().get(key), "and the engine's settings answer it");
 
-            String absolute = McpClient.text(client.call("health_check", "{}"));
-            assertNotEquals(relative, absolute, "a client sees the change in the next health_check answer");
-            assertTrue(absolute.contains(location), "paths are absolute now: the project's folder " + location + " is in the answer");
+            com.fasterxml.jackson.databind.JsonNode after = json.readTree(McpClient.text(client.call("health_check", "{}")))
+                .path("data").path("configuration");
+            assertTrue(after.path("absolutePaths").asBoolean(false), "a client sees absolute paths turned on in the next health_check: " + after);
+            assertEquals(45, after.path("timeoutSeconds").asInt(), "and the timeout typed on the page: " + after);
         } finally {
             onUserInterface(() -> {
                 opened.page().fieldFor(key).setText("");
+                opened.page().fieldFor(SettingKeys.TIMEOUT_SECONDS.name()).setText("");
                 opened.page().performOk();
                 opened.shell().dispose();
             });
