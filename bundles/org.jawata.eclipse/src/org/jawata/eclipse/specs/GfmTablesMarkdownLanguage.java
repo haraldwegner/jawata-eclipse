@@ -15,11 +15,14 @@ public class GfmTablesMarkdownLanguage extends MarkdownLanguage {
 
     /**
      * Spec D14: the person's comments and suggested changes are written as HTML before WikiText reads the text, so the preview shows them
-     * as callouts with no renderer of ours (WikiText's Markdown passes inline HTML through).
+     * as callouts with no renderer of ours (WikiText's Markdown passes inline HTML through). Only for the preview, which builds HTML: the
+     * editor's own reads of the same text (its outline and its source colouring) must see every character where it is, and the rewrite
+     * makes the text longer, which sent WikiText's source partitioner outside the document.
      */
     @Override
     public void processContent(MarkupParser parser, String markupContent, boolean asDocument) {
-        super.processContent(parser, CriticMarkup.toHtml(markupContent), asDocument);
+        boolean forThePreview = parser.getBuilder() instanceof org.eclipse.mylyn.wikitext.parser.builder.HtmlDocumentBuilder;
+        super.processContent(parser, forThePreview ? CriticMarkup.toHtml(markupContent) : markupContent, asDocument);
     }
 
     /** The table block goes first, and it may end a paragraph: a table directly under a line of text is still a table. */

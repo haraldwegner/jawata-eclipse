@@ -65,7 +65,7 @@ public class CalloutsTest {
         run(CalloutCommandHandler.ACCEPT, null);
         text = text.replace("{++by hand++}", "by hand");
         assertEquals(text, documentText(), "accepting an addition puts its text in the file and the mark is gone");
-        assertEquals(4, callouts(WikiTextShowsSpecsTest.previewHtmlWhen(shown -> callouts(shown) <= 4)), "and its callout is gone from the preview");
+        assertEquals(4, callouts(WikiTextShowsSpecsTest.previewHtmlWhen(shown -> callouts(shown) == 4)), "and its callout is gone from the preview");
 
         select("new name++}", 0, 0);
         run(CalloutCommandHandler.REJECT, null);
@@ -81,7 +81,7 @@ public class CalloutsTest {
         text = text.replace("{>>which command?<<}", "");
         assertEquals(text, documentText(), "resolving the comment removes it");
 
-        html = WikiTextShowsSpecsTest.previewHtmlWhen(shown -> callouts(shown) <= 1);
+        html = WikiTextShowsSpecsTest.previewHtmlWhen(shown -> callouts(shown) == 1);
         assertEquals(1, callouts(html), "only the typed removal is left: " + html);
         assertEquals(original.replace("{++by hand++}", "by hand"), documentText(), "every other byte of the file is as it was");
 
