@@ -50,6 +50,9 @@ public class ImportCodeWorkspaceTest {
 
     @AfterEach
     public void leaveTheWorkspaceAsItWas() throws Exception {
+        // Smart Import finishes on a job of its own after its wizard closes; a project it creates after this cleanup would meet the next test
+        Await.until(() -> java.util.Arrays.stream(org.eclipse.core.runtime.jobs.Job.getJobManager().find(null))
+            .noneMatch(job -> !job.isSystem() && job.getState() != org.eclipse.core.runtime.jobs.Job.SLEEPING));
         for (IProject project : root.getProjects()) {
             if (project.getName().startsWith("jawata-vsc-")) {
                 project.delete(false, true, new NullProgressMonitor());

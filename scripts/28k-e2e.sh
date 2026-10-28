@@ -300,7 +300,7 @@ for pkg in java rcp; do
     # D6/D7 inside this download: Tycho installs the test bundle and its harness on top of the installation above (p2 director, the
     # download's own profile) and runs the PDE tests in it; the components under test stay the download's own bundles.
     tests_out="$run/pde-tests.out"
-    (cd "$here" && xvfb-run -a mvn -B verify -pl releng/org.jawata.eclipse.target,bundles/org.jawata.eclipse,tests/org.jawata.eclipse.tests -am \
+    (cd "$here" && xvfb-run -a mvn -B verify -pl releng/org.jawata.eclipse.target,bundles/org.jawata.eclipse,bundles/org.jawata.eclipse.chat,tests/org.jawata.eclipse.tests -am \
         -Djawata.download="$eclipse" -Djawata.profile="epp.package.$pkg" -Djawata.product="org.eclipse.epp.package.$pkg.product" \
         ${JAWATA_SPEC:+-Djawata.spec.md="$JAWATA_SPEC"}) > "$tests_out" 2>&1
     tests_rc=$?
