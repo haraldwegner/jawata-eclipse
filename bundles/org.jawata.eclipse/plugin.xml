@@ -94,12 +94,12 @@
    <extension point="org.eclipse.ui.menus">
       <menuContribution locationURI="popup:org.eclipse.ui.popup.any?after=additions">
          <menu id="org.jawata.eclipse.specs.callouts" label="Comments and changes">
-            <command commandId="org.jawata.eclipse.specs.comment" label="Comment..." style="push"/>
-            <command commandId="org.jawata.eclipse.specs.suggestChange" label="Suggest change..." style="push"/>
+            <command commandId="org.jawata.eclipse.specs.comment" label="Comment..." style="push" tooltip="Writes your comment after the selected text, as a mark in the file"/>
+            <command commandId="org.jawata.eclipse.specs.suggestChange" label="Suggest change..." style="push" tooltip="Marks the selected text as removed and opens an addition for what it should become"/>
             <separator name="resolution" visible="true"/>
-            <command commandId="org.jawata.eclipse.specs.accept" label="Accept" style="push"/>
-            <command commandId="org.jawata.eclipse.specs.reject" label="Reject" style="push"/>
-            <command commandId="org.jawata.eclipse.specs.resolve" label="Resolve comment" style="push"/>
+            <command commandId="org.jawata.eclipse.specs.accept" label="Accept" style="push" tooltip="Accepts the mark at the cursor: an addition becomes text, a removal takes its text out"/>
+            <command commandId="org.jawata.eclipse.specs.reject" label="Reject" style="push" tooltip="Rejects the mark at the cursor: an addition is dropped, a removal keeps its text"/>
+            <command commandId="org.jawata.eclipse.specs.resolve" label="Resolve comment" style="push" tooltip="Removes the comment at the cursor from the file"/>
             <visibleWhen checkEnabled="false">
                <with variable="activeEditorId"><equals value="org.jawata.eclipse.specs.markdownEditor"/></with>
             </visibleWhen>
