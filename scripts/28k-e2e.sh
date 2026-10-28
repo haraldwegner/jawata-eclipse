@@ -276,6 +276,15 @@ for pkg in java rcp; do
         "Tests run: "[0-9]*", Failures: 0, Errors: 0"*) ok "P18 $pkg: a rename is one Undo step and one Undo restores it, a trial is not on the undo history, unsaved editor text is refused by name and untouched, write tools leave the configuration alone (${writes%%,*})" ;;
         *) fail "P18 $pkg: the writes tests did not pass in this download (${writes:-they did not run})" ;;
     esac
+    # P19 (plan Stage 19, W4): in this download a program started with Run for jawata runs in Run mode with the debug agent and the
+    # recording, on a copy of the person's configuration that is never saved, as a background job; the engine's debugger finds it and
+    # attaches by process id; and when the person starts Eclipse's Debug the agent's session ends and its next attach is refused until
+    # the person is done (HostRunsTest). The agent starting the program itself through MCP waits for the engine's host-run port (28k-A19-2).
+    runs="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.HostRunsTest' "$tests_out" | head -1)"
+    case "$runs" in
+        "Tests run: "[0-9]*", Failures: 0, Errors: 0"*) ok "P19 $pkg: Run for jawata starts the program in Run mode with the debug agent on an unsaved copy and the saved file is untouched, the debugger attaches, the person's Debug ends the agent's session and is not shared (${runs%%,*})" ;;
+        *) fail "P19 $pkg: the Run for jawata tests did not pass in this download (${runs:-they did not run})" ;;
+    esac
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
     # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"

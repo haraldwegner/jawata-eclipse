@@ -56,6 +56,7 @@ public final class HostRuns {
 
     private final ILaunchManager launches;
     private final String pluginId;
+    private final java.util.Set<ILaunch> live = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /**
      * A program started for jawata.
@@ -136,13 +137,24 @@ public final class HostRuns {
     /** @return the programs started for jawata that are still running */
     public List<JawataRun> running() {
         List<JawataRun> runs = new ArrayList<>();
-        for (ILaunch launch : launches.getLaunches()) {
+        live.removeIf(ILaunch::isTerminated);
+        for (ILaunch launch : live) {
             String configuration = launch.getAttribute(FOR_JAWATA);
-            if (configuration != null && !launch.isTerminated()) {
+            if (configuration != null) {
                 runs.add(new JawataRun(configuration, pidOf(launch), launch.getAttribute(STARTED_BY)));
             }
         }
         return runs;
+    }
+
+    /**
+     * The Eclipse launch behind a program started for jawata, for a caller that needs its mode or its processes.
+     *
+     * @param run a program {@link #run} answered with
+     * @return its launch while it is alive; empty once it has ended
+     */
+    public java.util.Optional<ILaunch> launchOf(JawataRun run) {
+        return live.stream().filter(launch -> pidOf(launch) == run.pid()).findFirst();
     }
 
     private ILaunch launch(String configuration, String startedBy, IProgressMonitor monitor) throws CoreException {
@@ -151,7 +163,11 @@ public final class HostRuns {
         String arguments = copy.getAttribute(IJavaLaunchConfigurationConstants.ATTR_VM_ARGUMENTS, "");
         String runId = java.util.UUID.randomUUID().toString();
         copy.setAttribute(IJavaLaunchConfigurationConstants.ATTR_VM_ARGUMENTS, withOptions(arguments, runId));
-        ILaunch launch = copy.launch(ILaunchManager.RUN_MODE, monitor, false, true);
+        // Not registered with Eclipse's launch manager: the debug UI reacts to every registered launch by making a console for it and
+        // showing the Console view, which would take the focus from the person (spec D4). The job in the status bar is how the person sees
+        // and stops the program; Eclipse still reads its output so it never blocks.
+        ILaunch launch = copy.launch(ILaunchManager.RUN_MODE, monitor, false, false);
+        live.add(launch);
         launch.setAttribute(PID, Long.toString(awaitPid(runId)));
         launch.setAttribute(STARTED_BY, startedBy);
         launch.setAttribute(FOR_JAWATA, configuration);

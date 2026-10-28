@@ -28,11 +28,15 @@ import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.jface.action.ActionContributionItem;
 import org.eclipse.jface.action.IContributionItem;
+import org.eclipse.jface.action.MenuManager;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.IViewReference;
 import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.menus.IMenuService;
 import org.jawata.eclipse.host.EclipseEngine;
 import org.jawata.eclipse.host.EngineStartup;
 import org.jawata.eclipse.run.EclipseDebugTurn;
@@ -56,7 +60,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class HostRunsTest {
 
     private static final String SPIN = "package p;\n\npublic class Spin {\n    public static void main(String[] args) throws Exception {\n"
-        + "        int ticks = 0;\n        while (true) {\n            ticks++;\n            Thread.sleep(50);\n        }\n    }\n}\n";
+        + "        int ticks = 0;\n        while (true) {\n            ticks++;\n            System.out.println(\"tick \" + ticks);\n            Thread.sleep(50);\n        }\n    }\n}\n";
     private static final String CONFIGURATION = "jawata-spin";
 
     private IProject project;
@@ -64,8 +68,21 @@ public class HostRunsTest {
     private ILaunchConfiguration person;
     private final ILaunchManager launches = DebugPlugin.getDefault().getLaunchManager();
 
+    /** Closes the Console view if an earlier launch opened it, so each test starts from the workbench the person had. */
+    private static void closeConsoleView() {
+        Display.getDefault().syncExec(() -> {
+            IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
+            IWorkbenchPage page = window == null ? null : window.getActivePage();
+            IViewReference console = page == null ? null : page.findViewReference("org.eclipse.ui.console.ConsoleView");
+            if (console != null) {
+                page.hideView(console);
+            }
+        });
+    }
+
     @BeforeEach
     public void aProjectWithAProgramAndARunConfiguration() throws Exception {
+        closeConsoleView();
         project = WorkspaceProjects.java("jawata-run-");
         project.getFolder("src/p").getFile("Spin.java").create(new ByteArrayInputStream(SPIN.getBytes(StandardCharsets.UTF_8)), true, null);
         project.build(IncrementalProjectBuilder.FULL_BUILD, null);
@@ -88,8 +105,16 @@ public class HostRunsTest {
             }
             launches.removeLaunch(launch);
         }
+        Job.getJobManager().cancel(HostRuns.FAMILY);
         Job.getJobManager().join(HostRuns.FAMILY, null);
         WorkspaceProjects.deleteQuietly(project);
+    }
+
+    /** The person starting Eclipse's Debug on their configuration; without a Console, so only the product's own launch can open one. */
+    private ILaunch startPersonsDebug() throws Exception {
+        ILaunchConfigurationWorkingCopy debug = person.getWorkingCopy();
+        debug.setAttribute("org.eclipse.debug.ui.ATTR_CONSOLE_OUTPUT_ON", false);
+        return debug.launch(ILaunchManager.DEBUG_MODE, null);
     }
 
     private byte[] savedBytes() throws Exception {
@@ -99,12 +124,7 @@ public class HostRunsTest {
     }
 
     private ILaunch launchFor(JawataRun run) {
-        for (ILaunch launch : launches.getLaunches()) {
-            if (CONFIGURATION.equals(launch.getAttribute(HostRuns.FOR_JAWATA))) {
-                return launch;
-            }
-        }
-        throw new AssertionError("no launch marked for jawata for " + run);
+        return HostRuns.shared().launchOf(run).orElseThrow(() -> new AssertionError("no live launch for jawata for " + run));
     }
 
     private JawataRun startForJawata(String startedBy) throws Exception {
@@ -177,7 +197,7 @@ public class HostRunsTest {
         String attached = McpClient.text(agent.call("debug", "{\"action\":\"attach\",\"pid\":" + run.pid() + "}"));
         assertTrue(attached.contains("sessionId"), attached);
 
-        ILaunch persons = person.launch(ILaunchManager.DEBUG_MODE, null);
+        ILaunch persons = startPersonsDebug();
 
         assertTrue(Await.until(() -> !debugText(agent, "{\"action\":\"status\"}").contains("sessionId")),
             "the agent's session ended when the person started debugging");
@@ -208,7 +228,7 @@ public class HostRunsTest {
             assertFalse(turn.personIsDebugging(), "a program run for jawata is not the person debugging");
             assertEquals(0, told.get(), "and the engine is not told");
 
-            ILaunch persons = person.launch(ILaunchManager.DEBUG_MODE, null);
+            ILaunch persons = startPersonsDebug();
             assertTrue(turn.personIsDebugging(), "the person's own debug launch is");
             assertEquals(1, told.get(), "and the engine is told once");
 
@@ -222,27 +242,51 @@ public class HostRunsTest {
         AtomicReference<String> before = new AtomicReference<>();
         AtomicReference<Shell> shellBefore = new AtomicReference<>();
         Display.getDefault().syncExec(() -> {
-            before.set(perspective());
+            before.set(screen());
             shellBefore.set(Display.getDefault().getActiveShell());
         });
 
-        startForJawata(HostRuns.AGENT);
-        Thread.sleep(1_000);
+        JawataRun started = startForJawata(HostRuns.AGENT);
+        // the program writes to its output at once; a view that opens on output opens within moments, so watch for five seconds
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        AtomicReference<String> seen = new AtomicReference<>(before.get());
+        while (System.nanoTime() < deadline && seen.get().equals(before.get())) {
+            Thread.sleep(200);
+            Display.getDefault().syncExec(() -> seen.set(screen()));
+        }
 
         AtomicReference<String> after = new AtomicReference<>();
         AtomicReference<Shell> shellAfter = new AtomicReference<>();
         Display.getDefault().syncExec(() -> {
-            after.set(perspective());
+            after.set(screen());
             shellAfter.set(Display.getDefault().getActiveShell());
         });
-        assertEquals(before.get(), after.get(), "the person's perspective is the one they left");
+        assertEquals(before.get(), after.get(), "the person's perspective, the part with the focus and the Console view are as they left them; "
+            + consoleDiagnosis(started));
         assertEquals(shellBefore.get(), shellAfter.get(), "and the window that had the focus still has it");
     }
 
-    private static String perspective() {
+    private String consoleDiagnosis(JawataRun run) throws Exception {
+        ILaunch launch = launchFor(run);
+        ILaunchConfiguration used = launch.getLaunchConfiguration();
+        StringBuilder consoles = new StringBuilder();
+        for (org.eclipse.ui.console.IConsole console : org.eclipse.ui.console.ConsolePlugin.getDefault().getConsoleManager().getConsoles()) {
+            consoles.append('[').append(console.getName()).append(']');
+        }
+        return "the launch's configuration is a working copy: " + used.isWorkingCopy() + ", its Console switch: "
+            + used.getAttribute("org.eclipse.debug.ui.ATTR_CONSOLE_OUTPUT_ON", true) + ", processes " + launch.getProcesses().length + ", consoles " + consoles;
+    }
+
+    /** What the person sees of the workbench: the perspective, the part that has the focus, and whether the Console view is open. */
+    private static String screen() {
         IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
         IWorkbenchPage page = window == null ? null : window.getActivePage();
-        return page == null || page.getPerspective() == null ? "none" : page.getPerspective().getId();
+        if (page == null || page.getPerspective() == null) {
+            return "none";
+        }
+        IWorkbenchPart part = page.getActivePart();
+        return page.getPerspective().getId() + " | active part " + (part == null ? "none" : part.getSite().getId()) + " | console view open "
+            + (page.findViewReference("org.eclipse.ui.console.ConsoleView") != null);
     }
 
     @Test
@@ -264,6 +308,32 @@ public class HostRunsTest {
         assertTrue(Await.until(() -> HostRuns.shared().running().size() == 1), "choosing it starts the program for jawata");
         assertEquals(HostRuns.PERSON, HostRuns.shared().running().get(0).startedBy(), "as the person's own request");
         assertNotEquals(-1L, HostRuns.shared().running().get(0).pid());
+    }
+
+    @Test
+    public void withNoRunConfigurationTheSubmenuSaysWhatIsMissingInsteadOfBeingEmpty() throws Exception {
+        person.delete();
+
+        IContributionItem[] items = menuItems(new RunForJawataMenu());
+
+        assertEquals(1, items.length, "one entry that explains");
+        ActionContributionItem only = (ActionContributionItem) items[0];
+        assertFalse(only.getAction().isEnabled(), "it cannot be chosen, it only explains");
+        assertTrue(only.getAction().getText().contains("Run > Run Configurations"), "and says where a configuration is made: " + only.getAction().getText());
+    }
+
+    @Test
+    public void theWorkbenchsRunMenuCarriesRunForJawata() {
+        AtomicReference<Boolean> carried = new AtomicReference<>(false);
+        Display.getDefault().syncExec(() -> {
+            MenuManager manager = new MenuManager();
+            IMenuService menus = PlatformUI.getWorkbench().getService(IMenuService.class);
+            menus.populateContributionManager(manager, "menu:org.eclipse.ui.run");
+            carried.set(manager.find("org.jawata.eclipse.run.forJawata") != null);
+            menus.releaseContributions(manager);
+            manager.dispose();
+        });
+        assertTrue(carried.get(), "the Run menu of the workbench holds Run for jawata, as plugin.xml says");
     }
 
     private static IContributionItem[] menuItems(RunForJawataMenu menu) throws Exception {

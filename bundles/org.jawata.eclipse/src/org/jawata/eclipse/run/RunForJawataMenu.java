@@ -14,6 +14,9 @@ import org.eclipse.ui.actions.CompoundContributionItem;
  */
 public final class RunForJawataMenu extends CompoundContributionItem {
 
+    /** What the submenu shows when the person has no run configuration to start. */
+    static final String NO_CONFIGURATION = "No run configuration yet (make one under Run > Run Configurations)";
+
     private final HostRuns runs;
 
     /** The menu over this plug-in's own runs, as Eclipse creates it from {@code plugin.xml}. */
@@ -29,6 +32,17 @@ public final class RunForJawataMenu extends CompoundContributionItem {
     @Override
     protected IContributionItem[] getContributionItems() {
         List<String> names = runs.configurations();
+        if (names.isEmpty()) {
+            // an empty submenu would leave the person guessing; say what is missing and where it is made (menu items show no mouseover)
+            Action none = new Action(NO_CONFIGURATION) {
+                @Override
+                public void run() {
+                    // a disabled entry that only explains
+                }
+            };
+            none.setEnabled(false);
+            return new IContributionItem[] { new ActionContributionItem(none) };
+        }
         IContributionItem[] items = new IContributionItem[names.size()];
         for (int i = 0; i < items.length; i++) {
             String name = names.get(i);
