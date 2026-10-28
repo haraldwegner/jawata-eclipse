@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The released jawata engine, as Eclipse bundles: spi, core, mcp and catalogue, taken from a released jawata-mcp dist (scripts/fetch-engine.sh,
+     engine.version), plus the two libraries Eclipse's own download does not carry that the engine imports: Jackson and H2.
+     It holds ONLY released engine bundles and what they need. Never: JDT, LTK, SWT, JFace, an slf4j provider, org.jawata.jdtpatch or
+     org.jawata.resident (contract section 9, R8) — Eclipse brings its own, and the resident is the headless host. Plan Stage 15. -->
+<feature id="org.jawata.engine.feature" label="jawata engine" version="0.1.0.qualifier" provider-name="Harald Wegner">
+   <description>The jawata engine: tools, memory, seats and the Java language provider, running on Eclipse's own Java tooling.</description>
+   <copyright>Copyright (c) 2026 Harald Wegner</copyright>
+   <license url="https://www.gnu.org/licenses/agpl-3.0.html">GNU Affero General Public License, version 3.0, with an additional permission under its section 7 for Eclipse components; see the NOTICE file of jawata-eclipse. Jackson is under the Apache License 2.0 and H2 under the Eclipse Public License 1.0 or the MPL 2.0.</license>
+   <plugin id="org.jawata.spi" version="0.0.0" unpack="false"/>
+   <plugin id="org.jawata.core" version="0.0.0" unpack="false"/>
+   <plugin id="org.jawata.mcp" version="0.0.0" unpack="false"/>
+   <plugin id="org.jawata.catalogue" version="0.0.0" unpack="false"/>
+   <plugin id="com.h2database" version="0.0.0" unpack="false"/>
+   <plugin id="com.fasterxml.jackson.core.jackson-annotations" version="0.0.0" unpack="false"/>
+   <plugin id="com.fasterxml.jackson.core.jackson-core" version="0.0.0" unpack="false"/>
+   <plugin id="com.fasterxml.jackson.core.jackson-databind" version="0.0.0" unpack="false"/>
+</feature>

@@ -44,6 +44,29 @@
   </build>
 
   <profiles>
+    <!-- The released engine's bundles in Tycho's own test runtime, so EngineBundlesResolveTest sees them (plan Stage 15). Not in the
+         in-download run below: there the engine comes from the installed update site, and asking for the feature again would install
+         a second build of it (a newer qualifier) beside the installed one, which p2 refuses. -->
+    <profile>
+      <id>engine-in-runtime</id>
+      <activation><property><name>!jawata.download</name></property></activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.eclipse.tycho</groupId>
+            <artifactId>target-platform-configuration</artifactId>
+            <version>${tycho.version}</version>
+            <configuration>
+              <dependency-resolution>
+                <extraRequirements combine.children="append">
+                  <requirement><type>eclipse-feature</type><id>org.jawata.engine.feature</id><versionRange>0.0.0</versionRange></requirement>
+                </extraRequirements>
+              </dependency-resolution>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <!-- a real spec to open as well as the fixture: mvn -Djawata.spec.md=PATH (the specs stay out of this public repository); set only
          when given, because an empty property would reach the test as the text "null" -->
     <profile>

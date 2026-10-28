@@ -17,4 +17,6 @@ Require-Bundle: org.eclipse.core.runtime,
  org.jawata.eclipse
 Import-Package: org.junit.jupiter.api;version="[5.0.0,6.0.0)",
  org.osgi.framework,
+ org.osgi.framework.namespace,
+ org.osgi.framework.wiring,
  org.osgi.util.tracker

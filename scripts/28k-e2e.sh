@@ -7,12 +7,14 @@
 # spec D6 and D7 stand on (WikiText's Markdown editor, the Terminal's local shell) — the PDE tests prove
 # their behaviour INSIDE each download: after the start check, the PDE tests run in that same installation (Tycho's p2Installed
 # mode adds only the test bundle and its harness), so the preview and the terminal are proven where a user installs the plug-in.
+# P15 (plan Stage 15): in the same started Eclipse the released engine's bundles, and the two libraries they bring (H2, Jackson), are
+# resolved too; the update site ships each of them byte-identical to the same-named file of the release in engine.version.
 # JAWATA_SPEC=<a spec .md> also opens a real spec (the specs are not in this repository).
 # R8: the update site ships none of JDT, LTK, SWT, JFace, an slf4j provider, org.jawata.jdtpatch or
 # org.jawata.resident (contract §16 row 1). R9, engine side: no jawata-mcp build file names this repository.
 # The commit hook: installed in this clone, and its own test passes.
 #
-# Needs: a built update site (xvfb-run -a mvn -B verify), xvfb-run, curl, sha512sum, and the engine checkout
+# Needs: a built update site (scripts/fetch-engine.sh, then xvfb-run -a mvn -B verify), xvfb-run, curl, jq, sha512sum, and the engine checkout
 # with its dist built (it runs the engine's promises first).
 # Downloads are kept in .work/dl-<package>/ and checked against eclipse.org's sha512; every run unpacks a
 # fresh copy into .work/run-<package>/, so an earlier run's install never counts.
@@ -20,7 +22,7 @@ set -uo pipefail
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
 work="$here/.work"
-site="$here/repository/target/repository"
+site="${JAWATA_SITE:-$here/repository/target/repository}"   # JAWATA_SITE: a tampered copy, for the gates' red controls
 release="https://download.eclipse.org/releases/2026-09"
 epp="https://download.eclipse.org/technology/epp/downloads/release/2026-09/R"
 feature="org.jawata.eclipse.feature.feature.group"
@@ -66,7 +68,7 @@ starts_with_plugin() {  # $1 eclipse dir, $2 run dir
         sleep 5
         if grep -qE 'ACTIVE +org\.eclipse\.ui\.workbench_' "$out"; then up=1; break; fi
     done
-    printf 'ss org.jawata\nss org.eclipse.mylyn.wikitext.markdown.ui\nss org.eclipse.terminal.connector.local\n' >&3 2>/dev/null; sleep 3
+    printf 'ss org.jawata\nss com.h2database\nss com.fasterxml.jackson.core\nss org.eclipse.mylyn.wikitext.markdown.ui\nss org.eclipse.terminal.connector.local\n' >&3 2>/dev/null; sleep 3
     printf 'close\n' >&3 2>/dev/null; sleep 1; printf 'y\n' >&3 2>/dev/null
     exec 3>&-
     for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
@@ -74,7 +76,10 @@ starts_with_plugin() {  # $1 eclipse dir, $2 run dir
     wait "$pid" 2>/dev/null
     [ "$up" = 1 ] || { echo "    the workbench never reached ACTIVE (180 s); console: $out"; return 1; }
     local b
-    for b in org.jawata.eclipse org.jawata.eclipse.chat org.eclipse.mylyn.wikitext.markdown.ui org.eclipse.terminal.connector.local; do
+    # P15: the released engine's bundles and the two libraries they bring resolve on THIS Eclipse's own JDT, LTK and JaCoCo.
+    for b in org.jawata.eclipse org.jawata.eclipse.chat org.jawata.spi org.jawata.core org.jawata.mcp org.jawata.catalogue \
+             com.h2database com.fasterxml.jackson.core.jackson-core com.fasterxml.jackson.core.jackson-databind \
+             com.fasterxml.jackson.core.jackson-annotations org.eclipse.mylyn.wikitext.markdown.ui org.eclipse.terminal.connector.local; do
         grep -qE "(RESOLVED|STARTING|ACTIVE) +${b//./\\.}_" "$out" \
             || { echo "    $b is not resolved in the running Eclipse; console: $out"; return 1; }
     done
@@ -88,6 +93,35 @@ if [ -z "$bad" ]; then
     ok "R8: the update site ships $(printf '%s\n' "$shipped" | wc -l) bundles, none of JDT, LTK, SWT, JFace, an slf4j provider, jdtpatch or resident"
 else
     fail "R8: the update site ships $(echo $bad)"
+fi
+# R9 from this side, and Stage 15's byte identity: every engine bundle and library the update site ships is, byte for byte, a file of the
+# released dist named by engine.version (fetched and checked by scripts/fetch-engine.sh); nothing of the engine is built here.
+bash "$here/scripts/fetch-engine.sh" > "$work/fetch-engine.out" 2>&1 || { fail "fetch-engine.sh: $(tail -1 "$work/fetch-engine.out")"; }
+. "$here/scripts/lib-bundles.sh"
+# The released dist's files by symbolic name: the same bundle must be the same bytes, not merely some released file.
+declare -A released
+for jar in "$work"/engine-download/unpacked/*/bundles/*.jar; do
+    [ -f "$jar" ] && released["$(bundle_symbolic_name "$jar")"]="$(sha256sum "$jar" | cut -d' ' -f1)"
+done
+# What the engine feature names is the one list (features/org.jawata.engine.feature/feature.xml): the site must ship exactly those, and the
+# four engine bundles are a floor, so an engine feature that named nothing could not pass.
+engine_ids="$(grep -o '<plugin id="[^"]*"' "$here/features/org.jawata.engine.feature/feature.xml" | sed -E 's/<plugin id="([^"]*)"/\1/')"
+engine_expected="$(printf '%s\n' "$engine_ids" | grep -c .)"
+floor_missing=""
+for need in org.jawata.spi org.jawata.core org.jawata.mcp org.jawata.catalogue; do
+    printf '%s\n' "$engine_ids" | grep -qx "$need" || floor_missing="$floor_missing $need"
+done
+engine_count=0 not_released=""
+for id in $engine_ids; do
+    f="$(ls "$site/plugins" | grep -E "^${id//./\\.}_[0-9]" | head -1)"
+    [ -n "$f" ] || { not_released="$not_released $id(not shipped)"; continue; }
+    engine_count=$((engine_count + 1))
+    [ "$(sha256sum "$site/plugins/$f" | cut -d' ' -f1)" = "${released[$id]:-none}" ] || not_released="$not_released $f"
+done
+if [ -z "$not_released" ] && [ -z "$floor_missing" ] && [ "$engine_count" -eq "$engine_expected" ] && [ "$engine_count" -ge 4 ]; then
+    ok "P15/R9: the update site ships the $engine_count engine bundles and libraries the engine feature names, each byte-identical to the file of the same name in the released engine $(cat "$here/engine.version")"
+else
+    fail "P15/R9: shipped engine files ($engine_count of the $engine_expected the engine feature names) not all byte-identical to the release:${not_released:- none listed}${floor_missing:+; the engine feature lacks$floor_missing}"
 fi
 named="$(cd "$engine" && git ls-files | grep -E '(^|/)(pom\.xml|MANIFEST\.MF|feature\.xml)$|\.target$' | xargs grep -l 'org\.jawata\.eclipse' 2>/dev/null)"
 if [ -z "$named" ]; then ok "R9: no jawata-mcp build file names org.jawata.eclipse"; else fail "R9: jawata-mcp build files name it: $(echo $named)"; fi
@@ -115,6 +149,8 @@ for pkg in java rcp; do
     fi
     if starts_with_plugin "$eclipse" "$run"; then
         ok "P13 $pkg: Eclipse starts in Xvfb, the workbench is ACTIVE; both org.jawata bundles, WikiText's Markdown editor and the Terminal's local shell are resolved"
+        # the same start check also required the engine bundles (starts_with_plugin): print what it proved, under the promise's own name
+        ok "P15 $pkg: in that started Eclipse the eight engine bundles and libraries (spi, core, mcp, catalogue, H2, Jackson x3) are resolved on its own JDT, LTK and JaCoCo"
     else
         fail "P13 $pkg: Eclipse did not start with the plug-in present"
     fi

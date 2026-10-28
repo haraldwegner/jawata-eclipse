@@ -10,7 +10,23 @@
       <unit id="org.eclipse.jdt.feature.group" version="0.0.0"/>
       <unit id="org.eclipse.mylyn.wikitext.feature.feature.group" version="0.0.0"/>
       <unit id="org.eclipse.terminal.feature.feature.group" version="0.0.0"/>
+      <!-- org.jawata.mcp requires JaCoCo (coverage and mutation tools). The clean Java download carries it through EclEmma; the
+           platform and JDT features do not, so it is named here and required, not shipped, by the plug-in (plan Stage 15). -->
+      <unit id="org.jacoco.core" version="0.0.0"/>
+      <unit id="org.jacoco.report" version="0.0.0"/>
     </location>
+    <!-- The released jawata engine (plan Stage 15): the bundles of one released jawata-mcp dist, fetched and checked by
+         scripts/fetch-engine.sh into .work/engine/plugins. Nothing of the engine is built in this repository (R9).
+         TWO THINGS A READER WILL TRIP OVER. (1) Tycho 5.0.4 resolves ${project_loc} in this path to the folder ABOVE this project's
+         own parent (<repo>/releng), so the path is written ${project_loc}/../.work/engine; an IDE's target editor may resolve it
+         differently, and a Tycho upgrade may move it. A missing folder was seen to fail the build at the engine feature; a moved path
+         is expected to fail the same way, which has not been tested.
+         (2) The folder exists only after scripts/fetch-engine.sh has run; without it the build fails with "could not be found". -->
+    <!-- org.jawata.mcp requires JaCoCo, which the engine release also carries (0.8.15). It is NOT taken from there: Eclipse's own
+         release repository is named in the first location above and in repository/category.xml, so the plug-in installs only where
+         that repository can be reached, and runs on the JaCoCo version Eclipse offers, not necessarily 0.8.15. -->
+
+    <location path="${project_loc}/../.work/engine" type="Directory"/>
     <!-- JUnit 5 for the PDE tests, from the Eclipse 4.41 update repository (the release repository does not carry it) -->
     <location includeAllPlatforms="false" includeConfigurePhase="true" includeMode="planner" includeSource="false" type="InstallableUnit">
       <repository location="https://download.eclipse.org/eclipse/updates/4.41/"/>

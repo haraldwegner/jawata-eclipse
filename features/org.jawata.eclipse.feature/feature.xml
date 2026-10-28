@@ -6,6 +6,7 @@
    <description>jawata inside Eclipse: the engine on Eclipse's own Java tooling, jawata's chat, and a Markdown viewer.</description>
    <copyright>Copyright (c) 2026 Harald Wegner</copyright>
    <license url="https://www.gnu.org/licenses/agpl-3.0.html">GNU Affero General Public License, version 3.0, with an additional permission under its section 7 for Eclipse components; see the NOTICE file of jawata-eclipse. Eclipse components it requires (Mylyn WikiText) remain under the Eclipse Public License 2.0.</license>
+   <includes id="org.jawata.engine.feature" version="0.0.0"/>
    <requires>
       <import feature="org.eclipse.mylyn.wikitext.feature"/>
    </requires>
