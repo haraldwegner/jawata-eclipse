@@ -8,6 +8,7 @@ Bundle-RequiredExecutionEnvironment: JavaSE-21
 Bundle-ActivationPolicy: lazy
 Automatic-Module-Name: org.jawata.eclipse.terminal
 Require-Bundle: org.eclipse.core.runtime,
- org.eclipse.ui
+ org.eclipse.ui,
+ org.eclipse.cdt.core.native
 Import-Package: org.osgi.framework
 Export-Package: org.jawata.eclipse.terminal;x-friends:="org.jawata.eclipse.tests"
