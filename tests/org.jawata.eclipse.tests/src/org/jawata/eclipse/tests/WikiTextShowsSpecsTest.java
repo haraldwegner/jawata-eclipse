@@ -137,18 +137,21 @@ public class WikiTextShowsSpecsTest {
 
     /** Selects the Preview tab as a click does, then reads what its browser shows, waiting up to ten seconds for the page to be what is wanted. */
     static String previewHtmlWhen(java.util.function.Predicate<String> ready) throws InterruptedException {
-        Display.getDefault().syncExec(() -> {
-            for (CTabFolder folder : folders(shell())) {
-                for (CTabItem item : folder.getItems()) {
-                    if (item.getText().contains("Preview")) {
-                        folder.setSelection(item);
-                        Event click = new Event();
-                        click.item = item;
-                        folder.notifyListeners(SWT.Selection, click);
+        // the Source tab first: a preview that stays selected is not built again from a document edited since, and showing it again is
+        for (String tab : new String[] { "Source", "Preview" }) {
+            Display.getDefault().syncExec(() -> {
+                for (CTabFolder folder : folders(shell())) {
+                    for (CTabItem item : folder.getItems()) {
+                        if (item.getText().contains(tab)) {
+                            folder.setSelection(item);
+                            Event click = new Event();
+                            click.item = item;
+                            folder.notifyListeners(SWT.Selection, click);
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
         AtomicReference<String> html = new AtomicReference<>("");
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         do {
