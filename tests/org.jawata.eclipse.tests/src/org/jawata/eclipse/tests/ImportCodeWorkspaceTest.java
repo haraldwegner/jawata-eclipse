@@ -186,4 +186,74 @@ public class ImportCodeWorkspaceTest {
         Await.found("the projects Smart Import creates", () -> theProjectsNow().size() == 2 ? Optional.of(true) : Optional.empty());
         assertEquals(byHand, theProjectsNow(), "the same projects, at the same places, as an import by hand");
     }
+
+    /** Presses the push button with this label (a mnemonic ignored) anywhere in the shell, as the person would. */
+    private static boolean press(org.eclipse.swt.widgets.Control control, String label) {
+        if (control instanceof org.eclipse.swt.widgets.Button button && button.getText().replace("&", "").equals(label)) {
+            button.notifyListeners(org.eclipse.swt.SWT.Selection, new org.eclipse.swt.widgets.Event());
+            return true;
+        }
+        if (control instanceof org.eclipse.swt.widgets.Composite composite) {
+            for (org.eclipse.swt.widgets.Control child : composite.getChildren()) {
+                if (press(child, label)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Starts the command on the workspace file and returns at once, as the menu does; the dialogs it opens are the test's to answer. */
+    private void start(Path workspace) {
+        ICommandService commands = PlatformUI.getWorkbench().getService(ICommandService.class);
+        IHandlerService handlers = PlatformUI.getWorkbench().getService(IHandlerService.class);
+        ParameterizedCommand parameterized = ParameterizedCommand.generateCommand(commands.getCommand(ImportCodeWorkspaceHandler.COMMAND_ID),
+            Map.of(ImportCodeWorkspaceHandler.FILE_PARAMETER, workspace.toString()));
+        Display.getDefault().asyncExec(() -> {
+            try {
+                handlers.executeCommand(parameterized, null);
+            } catch (Exception failed) {
+                throw new AssertionError("the command failed: " + failed, failed);
+            }
+        });
+    }
+
+    /** The dialog of this kind that is on top now, once there is one. */
+    private static <T> T awaitDialog(String what, Class<T> kind) throws InterruptedException {
+        return Await.found(what, () -> Optional.ofNullable(UiThread.call(() -> {
+            Shell active = Display.getDefault().getActiveShell();
+            return active != null && kind.isInstance(active.getData()) ? kind.cast(active.getData()) : null;
+        })));
+    }
+
+    @Test
+    public void cancellingAWizardAsksWhetherToSkipTheRestAndNoLeavesTheNextFolderToBeImported() throws Exception {
+        start(fixture());
+        WizardDialog first = awaitDialog("the first wizard", WizardDialog.class);
+        UiThread.call(() -> press(first.getShell(), "Cancel"));
+        org.eclipse.jface.dialogs.MessageDialog question = awaitDialog("the question whether to skip the rest", org.eclipse.jface.dialogs.MessageDialog.class);
+        UiThread.call(() -> press(question.getShell(), "No"));
+        WizardDialog second = awaitDialog("the wizard for the second folder", WizardDialog.class);
+        assertTrue(second != first, "a new wizard opened for the next folder");
+        UiThread.call(() -> {
+            assertTrue(second.getCurrentPage().getWizard().performFinish());
+            second.close();
+            return null;
+        });
+        Await.found("the second folder's project", () -> theProjectsNow().containsKey("jawata-vsc-core") ? Optional.of(true) : Optional.empty());
+        assertEquals(List.of("jawata-vsc-core"), List.copyOf(theProjectsNow().keySet()), "only the folder that was not cancelled is imported");
+    }
+
+    @Test
+    public void answeringYesToTheQuestionSkipsTheFoldersThatRemain() throws Exception {
+        start(fixture());
+        WizardDialog first = awaitDialog("the first wizard", WizardDialog.class);
+        UiThread.call(() -> press(first.getShell(), "Cancel"));
+        org.eclipse.jface.dialogs.MessageDialog question = awaitDialog("the question whether to skip the rest", org.eclipse.jface.dialogs.MessageDialog.class);
+        UiThread.call(() -> press(question.getShell(), "Yes"));
+        Thread.sleep(2000);
+        assertTrue(UiThread.call(() -> Display.getDefault().getActiveShell() == null || !(Display.getDefault().getActiveShell().getData() instanceof WizardDialog)),
+            "no wizard opened for the folder that remained");
+        assertTrue(theProjectsNow().isEmpty(), "and nothing was imported: " + theProjectsNow());
+    }
 }

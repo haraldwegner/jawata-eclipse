@@ -10,6 +10,7 @@ import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.window.Window;
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.FileDialog;
@@ -31,6 +32,8 @@ public final class ImportCodeWorkspaceHandler extends AbstractHandler {
     /** The optional parameter that names the workspace file, so a script or a test need not use the file dialog. */
     public static final String FILE_PARAMETER = COMMAND_ID + ".file";
 
+    private static final String TITLE = "Import a VS Code workspace";
+
     @Override
     public Object execute(ExecutionEvent event) throws ExecutionException {
         IWorkbenchWindow window = HandlerUtil.getActiveWorkbenchWindowChecked(event);
@@ -38,7 +41,7 @@ public final class ImportCodeWorkspaceHandler extends AbstractHandler {
         String named = event.getParameter(FILE_PARAMETER);
         if (named == null) {
             FileDialog chooser = new FileDialog(shell, SWT.OPEN);
-            chooser.setText("Import a VS Code workspace");
+            chooser.setText(TITLE);
             chooser.setFilterNames(new String[] {"VS Code workspace (*.code-workspace)", "All files"});
             chooser.setFilterExtensions(new String[] {"*.code-workspace", "*"});
             named = chooser.open();
@@ -50,24 +53,33 @@ public final class ImportCodeWorkspaceHandler extends AbstractHandler {
         try {
             folders = CodeWorkspace.folders(Path.of(named));
         } catch (IOException unreadable) {
-            MessageDialog.openError(shell, "Import a VS Code workspace", "The workspace file " + named + " cannot be read: " + unreadable.getMessage());
+            MessageDialog.openError(shell, TITLE, "The workspace file " + named + " cannot be read: " + unreadable.getMessage());
             return null;
         }
         List<Path> missing = new ArrayList<>();
-        for (Path folder : folders) {
+        for (int index = 0; index < folders.size(); index++) {
+            Path folder = folders.get(index);
             if (!folder.toFile().isDirectory()) {
                 missing.add(folder);
                 continue;
             }
             try {
                 SmartImports.Prepared prepared = SmartImports.prepare(window.getWorkbench(), folder.toFile());
-                new WizardDialog(shell, prepared.wizard()).open();
+                if (!prepared.prefilled()) {
+                    MessageDialog.openInformation(shell, TITLE, "This Eclipse cannot choose the folder for you. In the wizard that opens, choose:\n" + folder);
+                }
+                int answer = new WizardDialog(shell, prepared.wizard()).open();
+                int left = folders.size() - index - 1;
+                if (answer == Window.CANCEL && left > 0 && MessageDialog.openQuestion(shell, TITLE,
+                    "You cancelled the import of " + folder + ".\nSkip the " + left + " remaining folder" + (left == 1 ? "" : "s") + " too?")) {
+                    break;
+                }
             } catch (CoreException failed) {
                 throw new ExecutionException(failed.getMessage(), failed);
             }
         }
         if (!missing.isEmpty()) {
-            MessageDialog.openInformation(shell, "Import a VS Code workspace", "These folders of the workspace do not exist and were not imported:\n" + missing);
+            MessageDialog.openInformation(shell, TITLE, "These folders of the workspace do not exist and were not imported:\n" + missing);
         }
         return null;
     }

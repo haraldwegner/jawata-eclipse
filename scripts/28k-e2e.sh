@@ -370,11 +370,11 @@ for pkg in java rcp; do
     fi
     # P22 (plan Stage 22, W7, spec D8): in this download File > Import a VS Code workspace reads a .code-workspace file and opens Eclipse's
     # own Smart Import wizard for each folder it names; the person confirming each (the test presses Finish), the projects equal those of
-    # an import by hand and jawata creates none itself (ImportCodeWorkspaceTest, 4 tests). The path taken: the signed fallback, the wizard
+    # an import by hand and jawata creates none itself (ImportCodeWorkspaceTest, 6 tests). The path taken: the signed fallback, the wizard
     # reached by its id in the public registry and pre-filled by name, since Smart Import's classes are in an internal package.
     imports="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.ImportCodeWorkspaceTest$' "$tests_out" | head -1)"
     case "$imports" in
-        "Tests run: 4, Failures: 0, Errors: 0"*) ok "P22 $pkg: the import command on the fixture workspace gives the projects an import by hand gives, through Eclipse's own Smart Import wizard, the person confirming each folder (${imports%%,*}); path taken: the registry wizard, pre-filled by name" ;;
+        "Tests run: 6, Failures: 0, Errors: 0"*) ok "P22 $pkg: the import command on the fixture workspace gives the projects an import by hand gives, through Eclipse's own Smart Import wizard, the person confirming each folder (${imports%%,*}); path taken: the registry wizard, pre-filled by name" ;;
         *) fail "P22 $pkg: the VS Code workspace import tests did not pass in this download (${imports:-they did not run})" ;;
     esac
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
