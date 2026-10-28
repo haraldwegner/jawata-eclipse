@@ -255,7 +255,12 @@ for pkg in java rcp; do
         fail "D6/D7 $pkg: the PDE tests did not pass inside this download (exit $tests_rc, ${summary:-no test summary}); output: $tests_out"
     fi
     # Stage 16's snapshot test attaches the m2e, Buildship and PDE natures only when the running Eclipse has them; say which it was here
-    echo "  info  D2 $pkg: $(grep -h 'jawata-fixture natures present here' "$tests_out" | head -1 | sed -E 's/^.*jawata-fixture //')"
+    natures="$(grep -h 'jawata-fixture natures present here' "$tests_out" | head -1 | sed -E 's/^.*jawata-fixture //')"
+    want='m2e=true, buildship=true'; [ "$pkg" = rcp ] && want='m2e=true, buildship=true, pde=true'
+    case "$natures" in
+        *"$want"*) ok "D2 $pkg: the read-only run's Maven, Gradle and plug-in fixtures had their real natures in this download ($natures)" ;;
+        *) fail "D2 $pkg: the fixtures did not have the real natures this download should carry (wanted $want; ${natures:-the test printed none})" ;;
+    esac
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
     # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"

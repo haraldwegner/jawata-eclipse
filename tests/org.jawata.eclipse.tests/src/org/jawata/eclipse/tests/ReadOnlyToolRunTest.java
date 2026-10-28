@@ -123,7 +123,8 @@ public class ReadOnlyToolRunTest {
         Map<String, String> files = new TreeMap<>();
         for (IProject project : projects) {
             Path root = project.getLocation().toFile().toPath();
-            // the whole project folder: a file the engine left anywhere in it is seen; only bin/ is Eclipse's own build output
+            // the whole project folder: a file the engine left anywhere in it is seen; bin/, target/ and build/ are the output of
+            // Eclipse's own build (the real m2e writes target/classes on every build), not settings
             hashAll(files, root, root);
         }
         Path workspace = ResourcesPlugin.getWorkspace().getRoot().getLocation().toFile().toPath();
@@ -134,7 +135,7 @@ public class ReadOnlyToolRunTest {
     private static void hashAll(Map<String, String> into, Path base, Path dir) throws Exception {
         if (Files.isDirectory(dir)) {
             try (Stream<Path> walk = Files.walk(dir)) {
-                for (Path file : walk.filter(Files::isRegularFile).filter(f -> !base.relativize(f).startsWith("bin")).toList()) {
+                for (Path file : walk.filter(Files::isRegularFile).filter(f -> !List.of("bin", "target", "build").contains(base.relativize(f).getName(0).toString())).toList()) {
                     hash(into, base, file);
                 }
             }
