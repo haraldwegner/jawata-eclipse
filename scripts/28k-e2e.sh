@@ -268,6 +268,14 @@ for pkg in java rcp; do
         "Tests run: "[0-9]*", Failures: 0, Errors: 0"*) ok "P17 $pkg: the preference page shows every setting of the engine, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (${prefs%%,*})" ;;
         *) fail "P17 $pkg: the preference page tests did not pass in this download (${prefs:-they did not run})" ;;
     esac
+    # P18 (plan Stage 18, W3): in this download a rename a client asks for over MCP lands as one step on Edit > Undo and one Undo
+    # restores the files, a trial never reaches the undo history, a change over unsaved editor text is refused by name and the text is
+    # untouched, and a run of write tools leaves the configuration files alone (EclipseWritesTest)
+    writes="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.EclipseWritesTest' "$tests_out" | head -1)"
+    case "$writes" in
+        "Tests run: "[0-9]*", Failures: 0, Errors: 0"*) ok "P18 $pkg: a rename is one Undo step and one Undo restores it, a trial is not on the undo history, unsaved editor text is refused by name and untouched, write tools leave the configuration alone (${writes%%,*})" ;;
+        *) fail "P18 $pkg: the writes tests did not pass in this download (${writes:-they did not run})" ;;
+    esac
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
     # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"

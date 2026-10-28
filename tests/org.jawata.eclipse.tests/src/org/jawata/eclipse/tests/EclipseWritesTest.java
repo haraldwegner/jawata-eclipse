@@ -206,6 +206,13 @@ public class EclipseWritesTest {
             answers.forEach((tool, answer) -> assertFalse(McpClient.failed(answer), tool + " answered with an error: " + answer));
 
             assertEquals(before, configurationOf(project), "the write tools changed a configuration file");
+
+            // The control: the same snapshot does see a settings file appear, so "unchanged" above is not a snapshot that cannot see.
+            Path settings = Path.of(project.getLocation().toOSString()).resolve(".settings");
+            Files.createDirectories(settings);
+            Files.writeString(settings.resolve("control.prefs"), "control=true\n");
+            assertFalse(before.equals(configurationOf(project)), "the snapshot did not notice a new settings file");
+            Files.delete(settings.resolve("control.prefs"));
         } finally {
             WorkspaceProjects.deleteQuietly(project);
         }
