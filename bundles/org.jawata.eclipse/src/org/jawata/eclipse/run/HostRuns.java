@@ -117,7 +117,11 @@ public final class HostRuns {
                 try {
                     ILaunch launch = launch(configuration, startedBy, monitor);
                     started.complete(new JawataRun(configuration, pidOf(launch), startedBy));
-                    return awaitEnd(launch, monitor);
+                    try {
+                        return awaitEnd(launch, monitor);
+                    } finally {
+                        live.remove(launch);
+                    }
                 } catch (CoreException | RuntimeException failed) {
                     started.completeExceptionally(failed);
                     return new Status(IStatus.ERROR, pluginId, "Could not run " + configuration + " for jawata: " + failed.getMessage(), failed);
@@ -168,7 +172,15 @@ public final class HostRuns {
         // and stops the program; Eclipse still reads its output so it never blocks.
         ILaunch launch = copy.launch(ILaunchManager.RUN_MODE, monitor, false, false);
         live.add(launch);
-        launch.setAttribute(PID, Long.toString(awaitPid(runId)));
+        long pid = awaitPid(runId);
+        if (pid == -1) {
+            // a program the debugger cannot be pointed at is not a program started for jawata: stop it and say so, never answer success
+            launch.terminate();
+            live.remove(launch);
+            throw new CoreException(new Status(IStatus.ERROR, pluginId, "The program of " + configuration
+                + " started, but its process id could not be found, so the debugger could not attach to it. It was stopped."));
+        }
+        launch.setAttribute(PID, Long.toString(pid));
         launch.setAttribute(STARTED_BY, startedBy);
         launch.setAttribute(FOR_JAWATA, configuration);
         return launch;
@@ -197,11 +209,10 @@ public final class HostRuns {
 
     /** The arguments with the debug agent and the recording added, unless the person's configuration already has its own, and the run id. */
     static String withOptions(String arguments, String runId) {
-        StringBuilder all = new StringBuilder(arguments);
+        // a debug agent of the person's own is replaced by ours: theirs may hold the program at its start (suspend=y) with nobody to attach
+        StringBuilder all = new StringBuilder(arguments.replaceAll("-agentlib:jdwp\\S*", "").replaceAll("-Xrunjdwp\\S*", "").trim());
         all.append(' ').append(RUN_ID).append('=').append(runId);
-        if (!arguments.contains("-agentlib:jdwp") && !arguments.contains("-Xrunjdwp")) {
-            all.append(' ').append(AGENT_OPTION);
-        }
+        all.append(' ').append(AGENT_OPTION);
         if (!arguments.contains("StartFlightRecording")) {
             all.append(' ').append(RECORDING_OPTION);
         }

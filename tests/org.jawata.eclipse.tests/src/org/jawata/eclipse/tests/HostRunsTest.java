@@ -107,6 +107,7 @@ public class HostRunsTest {
         }
         Job.getJobManager().cancel(HostRuns.FAMILY);
         Job.getJobManager().join(HostRuns.FAMILY, null);
+        closeConsoleView();
         WorkspaceProjects.deleteQuietly(project);
     }
 
@@ -161,6 +162,19 @@ public class HostRunsTest {
     }
 
     @Test
+    public void aDebugAgentOfThePersonsOwnThatWaitsForADebuggerIsReplacedSoTheProgramNeverHangs() throws Exception {
+        ILaunchConfigurationWorkingCopy edited = person.getWorkingCopy();
+        edited.setAttribute(IJavaLaunchConfigurationConstants.ATTR_VM_ARGUMENTS, "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=127.0.0.1:0");
+        person = edited.doSave();
+
+        JawataRun run = startForJawata(HostRuns.AGENT);
+
+        String command = ProcessHandle.of(run.pid()).orElseThrow().info().commandLine().orElse("");
+        assertTrue(command.contains("suspend=n"), "the program does not wait for a debugger: " + command);
+        assertFalse(command.contains("suspend=y"), "the person's own agent, which would hold it, is gone: " + command);
+    }
+
+    @Test
     public void theProgramIsABackgroundJobThePersonCanCancel() throws Exception {
         JawataRun run = startForJawata(HostRuns.PERSON);
 
@@ -171,7 +185,8 @@ public class HostRunsTest {
         assertEquals(HostRuns.PERSON, HostRuns.shared().running().get(0).startedBy(), "it records that the person asked");
 
         jobs[0].cancel();
-        assertTrue(Await.until(() -> launchFor(run).isTerminated()), "cancelling the job stops the program");
+        assertTrue(Await.until(() -> !ProcessHandle.of(run.pid()).map(ProcessHandle::isAlive).orElse(false)), "cancelling the job stops the program");
+        assertTrue(Await.until(() -> HostRuns.shared().launchOf(run).isEmpty()), "and its launch leaves the live list when its job ends");
         assertTrue(Await.until(() -> HostRuns.shared().running().isEmpty()), "and it is no longer listed as running");
     }
 
@@ -227,6 +242,14 @@ public class HostRunsTest {
             startForJawata(HostRuns.AGENT);
             assertFalse(turn.personIsDebugging(), "a program run for jawata is not the person debugging");
             assertEquals(0, told.get(), "and the engine is not told");
+
+            // a plain Run the person starts is registered with Eclipse, unlike a program run for jawata; it is not debugging either
+            ILaunchConfigurationWorkingCopy plain = person.getWorkingCopy();
+            plain.setAttribute("org.eclipse.debug.ui.ATTR_CONSOLE_OUTPUT_ON", false);
+            ILaunch plainRun = plain.launch(ILaunchManager.RUN_MODE, null);
+            assertFalse(turn.personIsDebugging(), "a plain Run the person started is not debugging");
+            assertEquals(0, told.get(), "and the engine is not told for it either");
+            plainRun.terminate();
 
             ILaunch persons = startPersonsDebug();
             assertTrue(turn.personIsDebugging(), "the person's own debug launch is");
