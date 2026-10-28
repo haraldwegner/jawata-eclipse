@@ -50,6 +50,7 @@ public final class EclipseEngine implements AutoCloseable {
     private Thread serving;
     private EngineNoteWriter note;
     private MemoryNotice memory;
+    private org.jawata.eclipse.run.EclipseDebugTurn debugTurn;
 
     /**
      * @param workspace the workspace Eclipse has open
@@ -93,8 +94,11 @@ public final class EclipseEngine implements AutoCloseable {
             () -> folders.folders().stream().filter(ProjectFolder::open).map(ProjectFolder::path).toList());
         model = new EclipseJdtService(workspace.getRoot(), OPERATION_TIMEOUT_SECONDS);
         reconciler = new EclipseReconciler(workspace);
+        // The person wins the turn to debug: Eclipse's Debug starting ends the agent's sessions (contract A3-2).
+        debugTurn = new org.jawata.eclipse.run.EclipseDebugTurn(org.eclipse.debug.core.DebugPlugin.getDefault().getLaunchManager(), log, PLUGIN_ID);
+        org.jawata.spi.host.Instruments instruments = () -> debugTurn;
         EclipseHost host = new EclipseHost(folders, new EclipseEngineLifecycle(log, person, PLUGIN_ID), endpoint, settings, directories,
-            new EclipseJavaBinding(new EclipseModelSource(model, PLUGIN_ID)), reconciler, new EclipseWrites(PLUGIN_ID), person);
+            new EclipseJavaBinding(new EclipseModelSource(model, PLUGIN_ID)), reconciler, new EclipseWrites(PLUGIN_ID), person, instruments);
         try {
             // The note for studio and sibling engines is written the moment the listener is up (contract §14.1).
             note = new EngineNoteWriter(workspace, folders,
@@ -160,6 +164,10 @@ public final class EclipseEngine implements AutoCloseable {
                 Thread.currentThread().interrupt();
             }
             serving = null;
+        }
+        if (debugTurn != null) {
+            debugTurn.close();
+            debugTurn = null;
         }
         if (reconciler != null) {
             reconciler.close();

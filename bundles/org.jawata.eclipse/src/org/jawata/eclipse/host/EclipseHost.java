@@ -33,6 +33,7 @@ public final class EclipseHost implements EngineHost {
     private final Reconciler reconciler;
     private final WorkspaceWrites writes;
     private final PersonChannel person;
+    private final Instruments instruments;
     private final HostCapabilities capabilities;
 
     /**
@@ -45,10 +46,12 @@ public final class EclipseHost implements EngineHost {
      * @param reconciler  how the workspace is brought up to date with the disk and built
      * @param writes      how a change lands in the workspace
      * @param person      how the engine tells the person something
+     * @param instruments what Eclipse tells the engine about debugging: whose turn it is
      */
     public EclipseHost(HostWorkspace workspace, EngineLifecycle lifecycle, EndpointPolicy endpoint, EngineSettings settings,
                        EngineDirectories directories, LanguageBinding javaBinding, Reconciler reconciler, WorkspaceWrites writes,
-                       PersonChannel person) {
+                       PersonChannel person, Instruments instruments) {
+        this.instruments = instruments;
         this.workspace = workspace;
         this.lifecycle = lifecycle;
         this.endpoint = endpoint;
@@ -68,7 +71,7 @@ public final class EclipseHost implements EngineHost {
 
     @Override
     public Instruments instruments() {
-        return Instruments.NONE;
+        return instruments;
     }
 
     @Override

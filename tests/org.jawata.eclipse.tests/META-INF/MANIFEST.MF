@@ -16,6 +16,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.terminal.view.core,
  org.eclipse.jdt.core,
  org.eclipse.core.filebuffers,
+ org.eclipse.debug.core,
+ org.eclipse.jdt.launching,
  org.jawata.eclipse
 Import-Package: org.eclipse.core.commands.operations,
  org.eclipse.jdt.core.manipulation,

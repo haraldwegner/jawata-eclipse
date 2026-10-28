@@ -19,6 +19,7 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.mylyn.wikitext.ui,
  org.eclipse.jdt.core,
  org.eclipse.jdt.launching,
+ org.eclipse.debug.core,
  org.eclipse.core.filebuffers
 Import-Package: org.eclipse.jdt.core.manipulation,
  org.commonmark.ext.gfm.tables;version="[0.30.0,1.0.0)",
@@ -42,4 +43,5 @@ Import-Package: org.eclipse.jdt.core.manipulation,
 Export-Package: org.jawata.eclipse.host;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.java;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.preferences;x-friends:="org.jawata.eclipse.tests",
+ org.jawata.eclipse.run;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.specs

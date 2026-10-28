@@ -25,6 +25,15 @@
    <extension point="org.eclipse.ui.preferencePages">
       <page id="org.jawata.eclipse.preferences.jawata" name="jawata" class="org.jawata.eclipse.preferences.JawataPreferencePage"/>
    </extension>
+   <!-- Spec D4, contract §6.1 path B: Run > Run for jawata starts one of the person's run configurations in Run mode with the debug
+        agent, so the agent can attach while the person reproduces a problem. The entries are read when the menu opens. -->
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="menu:org.eclipse.ui.run?after=additions">
+         <menu id="org.jawata.eclipse.run.forJawata" label="Run for jawata">
+            <dynamic id="org.jawata.eclipse.run.forJawata.configurations" class="org.jawata.eclipse.run.RunForJawataMenu"/>
+         </menu>
+      </menuContribution>
+   </extension>
    <extension point="org.eclipse.core.runtime.preferences">
       <initializer class="org.jawata.eclipse.host.EnginePreferenceInitializer"/>
    </extension>
