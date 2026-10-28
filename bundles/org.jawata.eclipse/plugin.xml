@@ -34,6 +34,24 @@
          </menu>
       </menuContribution>
    </extension>
+   <!-- Spec D8, plan Stage 22 (W7): File > Import a VS Code workspace reads a .code-workspace file and opens Eclipse's Smart Import wizard for
+        each folder it names, so the person confirms every import; jawata creates no project. -->
+   <extension point="org.eclipse.ui.commands">
+      <command id="org.jawata.eclipse.importCodeWorkspace"
+               name="Import a VS Code workspace"
+               description="Reads the folders a .code-workspace file names and opens Eclipse's Smart Import for each, so you confirm every import.">
+         <commandParameter id="org.jawata.eclipse.importCodeWorkspace.file" name="Workspace file" optional="true"/>
+      </command>
+   </extension>
+   <extension point="org.eclipse.ui.handlers">
+      <handler commandId="org.jawata.eclipse.importCodeWorkspace" class="org.jawata.eclipse.imports.ImportCodeWorkspaceHandler"/>
+   </extension>
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="menu:file?after=import.ext">
+         <command commandId="org.jawata.eclipse.importCodeWorkspace" label="Import a VS Code workspace..." style="push"
+                  tooltip="Reads the folders a .code-workspace file names and opens Smart Import for each"/>
+      </menuContribution>
+   </extension>
    <extension point="org.eclipse.core.runtime.preferences">
       <initializer class="org.jawata.eclipse.host.EnginePreferenceInitializer"/>
    </extension>

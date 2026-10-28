@@ -42,6 +42,7 @@ Import-Package: org.eclipse.jdt.core.manipulation,
  org.osgi.framework
 Export-Package: org.jawata.eclipse.access;x-friends:="org.jawata.eclipse.chat,org.jawata.eclipse.tests",
  org.jawata.eclipse.host;x-friends:="org.jawata.eclipse.tests",
+ org.jawata.eclipse.imports;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.java;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.preferences;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.run;x-friends:="org.jawata.eclipse.tests",
