@@ -19,7 +19,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.debug.core,
  org.eclipse.ui.console,
  org.eclipse.jdt.launching,
- org.jawata.eclipse
+ org.jawata.eclipse,
+ org.jawata.eclipse.chat
 Import-Package: org.eclipse.core.commands.operations,
  org.eclipse.jdt.core.manipulation,
  org.eclipse.jface.text,

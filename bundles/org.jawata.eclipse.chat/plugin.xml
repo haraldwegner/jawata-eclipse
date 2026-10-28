@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <!-- Spec D3, plan Stage 21: the chat is a view the person opens from Window > Show View; the editor-area page is Stage 23. -->
+   <extension point="org.eclipse.ui.views">
+      <category id="org.jawata.eclipse.chat.category" name="jawata"/>
+      <view id="org.jawata.eclipse.chat.view"
+            name="jawata chat"
+            category="org.jawata.eclipse.chat.category"
+            class="org.jawata.eclipse.chat.ChatView"
+            allowMultiple="false"/>
+   </extension>
+</plugin>
