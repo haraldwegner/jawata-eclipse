@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.function.BooleanSupplier;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
@@ -46,16 +45,6 @@ public class JavaModelHostTest {
 
     private static List<String> names(IJdtService service) {
         return service.allProjects().stream().map(p -> p.javaProject().getProject().getName()).toList();
-    }
-
-    private static boolean eventually(BooleanSupplier condition) throws InterruptedException {
-        for (int i = 0; i < 100; i++) {
-            if (condition.getAsBoolean()) {
-                return true;
-            }
-            Thread.sleep(100);
-        }
-        return condition.getAsBoolean();
     }
 
     @Test
@@ -116,13 +105,13 @@ public class JavaModelHostTest {
             int before = service.projectKeys().size();
             IProject added = WorkspaceProjects.java("jawata-later-");
             try {
-                assertTrue(eventually(() -> names(service).contains(added.getName())),
+                assertTrue(Await.until(() -> names(service).contains(added.getName())),
                     "the project Eclipse gained is in view on the next question: " + names(service));
                 assertTrue(service.projectKeys().size() > before);
             } finally {
                 WorkspaceProjects.deleteQuietly(added);
             }
-            assertTrue(eventually(() -> !names(service).contains(added.getName())), "and out of view once it is gone: " + names(service));
+            assertTrue(Await.until(() -> !names(service).contains(added.getName())), "and out of view once it is gone: " + names(service));
         }
     }
 

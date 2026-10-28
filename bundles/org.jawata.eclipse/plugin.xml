@@ -15,4 +15,9 @@
          <contentTypeBinding contentTypeId="org.eclipse.mylyn.wikitext.markdown"/>
       </editor>
    </extension>
+   <!-- Spec D2: the engine runs inside Eclipse and the person starts nothing. Eclipse calls this after the workbench is up, on a thread
+        of its own, and the engine is ended when the workbench shuts down. -->
+   <extension point="org.eclipse.ui.startup">
+      <startup class="org.jawata.eclipse.host.EngineStartup"/>
+   </extension>
 </plugin>
