@@ -46,6 +46,7 @@ public final class EclipseEngine implements AutoCloseable {
     private ServiceRegistration<EngineHost> hostRegistration;
     private WhiteboardTracker whiteboardTracker;
     private Thread serving;
+    private EngineNoteWriter note;
 
     /**
      * @param workspace the workspace Eclipse has open
@@ -83,6 +84,12 @@ public final class EclipseEngine implements AutoCloseable {
         EclipseHost host = new EclipseHost(folders, new EclipseEngineLifecycle(log, person, PLUGIN_ID), endpoint, settings, directories,
             new EclipseJavaBinding(new EclipseModelSource(model, PLUGIN_ID)), reconciler, new EclipseWrites(PLUGIN_ID), person);
         try {
+            // The note for studio and sibling engines is written the moment the listener is up (contract §14.1).
+            note = new EngineNoteWriter(workspace, folders,
+                settings.get(org.jawata.mcp.engine.SettingKeys.ENGINE_NOTES_DIR.name()).filter(dir -> !dir.isBlank()).map(java.nio.file.Path::of)
+                    .orElseGet(org.jawata.mcp.models.EngineNotes::defaultDir),
+                org.osgi.framework.FrameworkUtil.getBundle(JawataEngine.class).getVersion().toString(), log);
+            endpoint.onListening(note::ready);
             EngineState.current().booted();
             engine = JawataEngine.assemble(host);
             hostRegistration = framework.registerService(EngineHost.class, engine.host(), null);
@@ -111,6 +118,10 @@ public final class EclipseEngine implements AutoCloseable {
     /** Ends the engine and lets go of everything it was given; safe to call twice, and on an engine that never fully started. */
     @Override
     public synchronized void close() {
+        if (note != null) {
+            note.close();
+            note = null;
+        }
         if (engine != null) {
             engine.stop();
             engine.whiteboard().stopping();

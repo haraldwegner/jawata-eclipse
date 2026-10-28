@@ -38,6 +38,11 @@
           <useUIThread>false</useUIThread>
           <product>org.eclipse.platform.ide</product>
           <application>org.eclipse.ui.ide.workbench</application>
+          <!-- The engine the workbench starts writes its note here and not into the machine's real cache folder, where studio would list
+               the test run as a running Eclipse workspace (plan Stage 16, step 16.5). -->
+          <systemProperties>
+            <jawata.engine.notes.dir>${project.build.directory}/engine-notes</jawata.engine.notes.dir>
+          </systemProperties>
         </configuration>
       </plugin>
     </plugins>
