@@ -170,6 +170,60 @@ p16() {  # $1 package, $2 eclipse dir, $3 run dir
     p16_stop
 }
 
+# P20 (plan Stage 20, spec D9): real Eclipse instances with the plug-in write real notes; studio's compiled code reads them with its own
+# reader and the row builder both the list and the tray call (src-tauri/tests/p20_real_eclipse_notes.rs in jawata-studio, the studio
+# checkout named by JAWATA_STUDIO). Studio has no command-line door to its dashboard, so the test calls the production functions. Three
+# workspaces: C is opened once and closed (studio saw it live, so it stays listed, not running); A and B are open at the end. Expected:
+# C alone: 1 running; C closed: 0 running, 1 not running; A, B and C: 2 running, 1 not running. Studio deletes no note and no row has a switch.
+p20_start() {  # $1 eclipse dir, $2 workspace dir, $3 notes dir, $4 console fifo, $5 console output, $6 fd number → sets p20_pid
+    mkdir -p "$2" "$3"; rm -f "$4"; mkfifo "$4"
+    xvfb-run -a "$1/eclipse" -nosplash -data "$2" -consoleLog -console -vmargs "-Djawata.engine.notes.dir=$3" < "$4" > "$5" 2>&1 &
+    p20_pid=$!
+    eval "exec $6>\"$4\""
+}
+p20_stop() {  # $1 pid, $2 fd number: a clean stop through the console; the engine deletes its own note
+    eval "printf 'close\n' >&$2" 2>/dev/null; sleep 1; eval "printf 'y\n' >&$2" 2>/dev/null
+    eval "exec $2>&-"
+    for _ in $(seq 1 30); do kill -0 "$1" 2>/dev/null || break; sleep 1; done
+    kill -0 "$1" 2>/dev/null && { pkill -P "$1"; kill "$1"; } 2>/dev/null
+    wait "$1" 2>/dev/null
+}
+p20_wait_notes() {  # $1 notes dir, $2 how many notes, within 180 s
+    for _ in $(seq 1 36); do
+        [ "$(ls "$1"/eclipse-*.json 2>/dev/null | wc -l)" -eq "$2" ] && return 0
+        sleep 5
+    done
+    return 1
+}
+p20_studio() {  # $1 notes dir, $2 settings dir, $3 expected "running,notrunning" → studio's own test, its output
+    studio="${JAWATA_STUDIO:-$here/../jawata-studio}"
+    (cd "$studio/src-tauri" && JAWATA_P20_NOTES="$1" JAWATA_P20_SETTINGS="$2" JAWATA_P20_EXPECT="$3" \
+        cargo test --offline --test p20_real_eclipse_notes -- --ignored --nocapture 2>&1)
+}
+p20() {  # $1 package, $2 eclipse dir, $3 run dir
+    local pkg="$1" eclipse="$2" run="$3" notes="$3/p20-notes" settings="$3/p20-settings" out pid_c pid_a pid_b
+    rm -rf "$notes" "$settings" "$run"/p20-ws-*; mkdir -p "$settings"
+    p20_start "$eclipse" "$run/p20-ws-c" "$notes" "$run/p20-c.fifo" "$run/p20-c.out" 5; pid_c=$p20_pid
+    p20_wait_notes "$notes" 1 || { fail "P20 $pkg: no note for the first workspace within 180 s; console: $run/p20-c.out"; p20_stop "$pid_c" 5; return; }
+    out="$(p20_studio "$notes" "$settings" "1,0")"
+    if [ $? -eq 0 ]; then ok "P20 $pkg: one Eclipse open: studio's reader shows 1 running Eclipse workspace, no switch, no note deleted"
+    else fail "P20 $pkg: studio's reader did not show 1 running: $(echo "$out" | tail -6 | tr '\n' ' ')"; p20_stop "$pid_c" 5; return; fi
+    p20_stop "$pid_c" 5
+    out="$(p20_studio "$notes" "$settings" "0,1")"
+    if [ $? -eq 0 ]; then ok "P20 $pkg: after that Eclipse closed, studio still lists its workspace, not running (it remembered it)"
+    else fail "P20 $pkg: the closed workspace is not listed as not running: $(echo "$out" | tail -6 | tr '\n' ' ')"; return; fi
+    p20_start "$eclipse" "$run/p20-ws-a" "$notes" "$run/p20-a.fifo" "$run/p20-a.out" 6; pid_a=$p20_pid
+    p20_start "$eclipse" "$run/p20-ws-b" "$notes" "$run/p20-b.fifo" "$run/p20-b.out" 7; pid_b=$p20_pid
+    if p20_wait_notes "$notes" 2; then
+        out="$(p20_studio "$notes" "$settings" "2,1")"
+        if [ $? -eq 0 ]; then ok "P20 $pkg: two Eclipse instances open and one closed: studio answers 2 running, 1 not running, no switch on any, the tray rows are the list's rows ($(echo "$out" | grep -c 'row:') rows)"
+        else fail "P20 $pkg: studio's answer is not 2 running, 1 not running: $(echo "$out" | tail -6 | tr '\n' ' ')"; fi
+    else
+        fail "P20 $pkg: the two Eclipse instances did not both write a note within 180 s; consoles: $run/p20-a.out, $run/p20-b.out"
+    fi
+    p20_stop "$pid_a" 6; p20_stop "$pid_b" 7
+}
+
 echo "R8, R9 and the commit hook"
 shipped="$(ls "$site/plugins" | sed 's/_[0-9].*//')"
 forbidden='^(org\.eclipse\.(jdt|ltk|swt|jface)|org\.jawata\.(jdtpatch|resident)|slf4j\.(simple|nop|jdk14|reload4j)|ch\.qos\.logback)'
@@ -298,6 +352,7 @@ for pkg in java rcp; do
         fail "D6 $pkg: Eclipse's log in the test run: ${noise:-(the tests did not run in this download)}; log: $log"
     fi
     p16 "$pkg" "$eclipse" "$run"
+    p20 "$pkg" "$eclipse" "$run"
 done
 
 echo
