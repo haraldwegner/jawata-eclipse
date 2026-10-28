@@ -35,6 +35,9 @@ public final class EclipseEngine implements AutoCloseable {
     /** How long one engine operation may run before it is abandoned, until the person's settings say otherwise (Stage 17). */
     private static final int OPERATION_TIMEOUT_SECONDS = 30;
 
+    /** How full the heap is after a collection before the person is told to raise Eclipse's memory. */
+    private static final double MEMORY_NOTICE_FRACTION = 0.9;
+
     private final IWorkspace workspace;
     private final ILog log;
     private final BundleContext framework;
@@ -47,6 +50,7 @@ public final class EclipseEngine implements AutoCloseable {
     private WhiteboardTracker whiteboardTracker;
     private Thread serving;
     private EngineNoteWriter note;
+    private MemoryNotice memory;
 
     /**
      * @param workspace the workspace Eclipse has open
@@ -90,6 +94,9 @@ public final class EclipseEngine implements AutoCloseable {
                     .orElseGet(org.jawata.mcp.models.EngineNotes::defaultDir),
                 org.osgi.framework.FrameworkUtil.getBundle(JawataEngine.class).getVersion().toString(), log);
             endpoint.onListening(note::ready);
+            // The engine shares Eclipse's memory: the person is told once when it runs short (the signed response to that risk).
+            memory = new MemoryNotice(person, MEMORY_NOTICE_FRACTION);
+            memory.arm();
             EngineState.current().booted();
             engine = JawataEngine.assemble(host);
             hostRegistration = framework.registerService(EngineHost.class, engine.host(), null);
@@ -118,6 +125,10 @@ public final class EclipseEngine implements AutoCloseable {
     /** Ends the engine and lets go of everything it was given; safe to call twice, and on an engine that never fully started. */
     @Override
     public synchronized void close() {
+        if (memory != null) {
+            memory.disarm();
+            memory = null;
+        }
         if (note != null) {
             note.close();
             note = null;
