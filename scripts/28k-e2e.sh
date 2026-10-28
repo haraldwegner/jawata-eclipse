@@ -14,7 +14,9 @@
 # org.jawata.resident (contract §16 row 1). R9, engine side: no jawata-mcp build file names this repository.
 # The commit hook: installed in this clone, and its own test passes.
 #
-# Needs: a built update site (scripts/fetch-engine.sh, then xvfb-run -a mvn -B verify), xvfb-run, curl, jq, sha512sum, and the engine checkout
+# P21 (plan Stage 21): the chat's page (scripts/build-chat-page.sh: the jawata-chat commit in chat.ref, bundled into the chat bundle's
+# gitignored page/ folder) is built before mvn, like the engine; this script runs it again and fails the run if it fails.
+# Needs: a built update site (scripts/fetch-engine.sh and scripts/build-chat-page.sh, then xvfb-run -a mvn -B verify), xvfb-run, curl, jq, sha512sum, and the engine checkout
 # with its dist built (it runs the engine's promises first).
 # Downloads are kept in .work/dl-<package>/ and checked against eclipse.org's sha512; every run unpacks a
 # fresh copy into .work/run-<package>/, so an earlier run's install never counts.
@@ -236,6 +238,8 @@ fi
 # R9 from this side, and Stage 15's byte identity: every engine bundle and library the update site ships is, byte for byte, a file of the
 # released dist named by engine.version (fetched and checked by scripts/fetch-engine.sh); nothing of the engine is built here.
 bash "$here/scripts/fetch-engine.sh" > "$work/fetch-engine.out" 2>&1 || { fail "fetch-engine.sh: $(tail -1 "$work/fetch-engine.out")"; }
+# The chat's page, the same way (step 21.1): built from the jawata-chat commit chat.ref names; a failure fails the run.
+bash "$here/scripts/build-chat-page.sh" > "$work/build-chat-page.out" 2>&1 || { fail "build-chat-page.sh: $(tail -1 "$work/build-chat-page.out")"; }
 . "$here/scripts/lib-bundles.sh"
 # The released dist's files by symbolic name: the same bundle must be the same bytes, not merely some released file.
 declare -A released
