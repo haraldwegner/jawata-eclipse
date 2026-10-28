@@ -25,7 +25,8 @@ public final class TerminalView extends ViewPart {
     public void createPartControl(Composite parent) {
         browser = new Browser(parent, SWT.NONE);
         try {
-            browser.setUrl(FileLocator.toFileURL(FrameworkUtil.getBundle(TerminalView.class).getEntry("page/index.html")).toString());
+            // the whole page folder, not index.html alone: Eclipse extracts only what it is asked for, and the scripts sit beside the page
+            browser.setUrl(FileLocator.toFileURL(FrameworkUtil.getBundle(TerminalView.class).getEntry("page/")) + "index.html");
         } catch (IOException unreadable) {
             browser.setText("<p>The jawata terminal's page could not be read: " + unreadable.getMessage() + "</p>");
         }

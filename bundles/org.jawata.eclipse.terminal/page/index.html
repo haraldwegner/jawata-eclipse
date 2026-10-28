@@ -1,5 +1,61 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>jawata terminal</title></head>
-<body style="margin:0;font-family:sans-serif"><div id="terminal">jawata terminal</div></body>
+<head>
+<meta charset="utf-8">
+<title>jawata terminal</title>
+<link rel="stylesheet" href="vendor/xterm.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #1e1e1e; overflow: hidden; }
+  #terminal { position: absolute; inset: 4px 0 0 6px; }
+</style>
+</head>
+<body>
+<div id="terminal"></div>
+<script src="vendor/xterm.js"></script>
+<script src="vendor/addon-fit.js"></script>
+<script>
+  // The page of the jawata terminal. It speaks to its host in three messages up (input, resize, ready) and one down (write); it keeps no
+  // state the host needs. See ARCHITECTURE-terminal.md.
+  const term = new Terminal({
+    fontFamily: '"DejaVu Sans Mono", "Menlo", "Consolas", monospace',
+    fontSize: 14,
+    cursorBlink: true,
+    scrollback: 10000,
+    allowProposedApi: true,
+    theme: { background: '#1e1e1e', foreground: '#d4d4d4' }
+  });
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.open(document.getElementById('terminal'));
+
+  function send(message) {
+    if (typeof window.jawataTerminalHost === 'function') {
+      window.jawataTerminalHost(JSON.stringify(message));
+    }
+  }
+  function refit() {
+    fit.fit();
+    send({ type: 'resize', cols: term.cols, rows: term.rows });
+  }
+
+  term.onData(data => send({ type: 'input', data: data }));
+  window.addEventListener('resize', refit);
+
+  window.jawataTerminal = {
+    /** What the shell wrote, as base64 of its bytes, so xterm.js decodes the UTF-8 itself. */
+    write: function (base64) {
+      const text = atob(base64);
+      const bytes = new Uint8Array(text.length);
+      for (let i = 0; i < text.length; i++) { bytes[i] = text.charCodeAt(i); }
+      term.write(bytes);
+    },
+    focus: function () { term.focus(); },
+    size: function () { return { cols: term.cols, rows: term.rows }; }
+  };
+
+  refit();
+  term.focus();
+  send({ type: 'ready', cols: term.cols, rows: term.rows });
+</script>
+</body>
 </html>

@@ -44,5 +44,18 @@ public class TerminalViewTest {
             return text.contains("jawata terminal") ? text : null;
         })));
         assertTrue(shown.contains("jawata terminal"), shown);
+        // and the page really holds an xterm.js terminal, not only a title
+        Number terminals;
+        try {
+            terminals = Await.found("an xterm.js terminal in the page", () -> java.util.Optional.ofNullable(UiThread.call(() -> {
+                Object count = view.get().browser().evaluate("return document.querySelectorAll('.xterm').length;");
+                return count instanceof Number number && number.intValue() >= 1 ? number : null;
+            })));
+        } catch (AssertionError missing) {
+            Object said = UiThread.call(() -> view.get().browser().evaluate(
+                "return typeof Terminal + '|' + typeof FitAddon + '|' + document.body.innerHTML.length + '|' + document.location.href;"));
+            throw new AssertionError(missing.getMessage() + "; the page says: " + said, missing);
+        }
+        assertTrue(terminals.intValue() >= 1, "the page shows an xterm.js terminal");
     }
 }
