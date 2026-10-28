@@ -85,6 +85,88 @@ starts_with_plugin() {  # $1 eclipse dir, $2 run dir
     done
 }
 
+# P16 (plan Stage 16): Eclipse with the plug-in on a fixture workspace. The engine starts with the workbench and writes its note; an
+# MCP client at the note's endpoint, with no key, gets the same tool names as the headless engine's golden (R7) and HOST_OWNS_WORKSPACE
+# from load_project; a clean stop removes the note; relaunched on a second workspace the note names that workspace and the engine
+# answers at its own address. $engine is the engine checkout, whose build/28k-golden-tools.json is the headless surface.
+p16_session=""
+p16_mcp() {  # $1 url, $2 JSON body → the JSON answer (a bare object, or the data: frame of an event stream)
+    curl -sS -m 120 -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+        ${p16_session:+-H "Mcp-Session-Id: $p16_session"} -d "$2" "$1" | sed -E 's/^data: ?//' | grep -v '^event:' | head -1
+}
+p16_start() {  # $1 eclipse dir, $2 workspace dir, $3 notes dir, $4 console fifo, $5 console output → sets p16_pid; fd 4 is the console
+    mkdir -p "$2" "$3"; rm -f "$4"; mkfifo "$4"
+    xvfb-run -a "$1/eclipse" -nosplash -data "$2" -consoleLog -console -vmargs "-Djawata.engine.notes.dir=$3" < "$4" > "$5" 2>&1 &
+    p16_pid=$!
+    exec 4>"$4"
+}
+p16_stop() {  # a clean stop through the console, as a person closing Eclipse would: the note is deleted by it
+    printf 'close\n' >&4 2>/dev/null; sleep 1; printf 'y\n' >&4 2>/dev/null
+    exec 4>&-
+    for _ in $(seq 1 30); do kill -0 "$p16_pid" 2>/dev/null || break; sleep 1; done
+    kill -0 "$p16_pid" 2>/dev/null && { pkill -P "$p16_pid"; kill "$p16_pid"; } 2>/dev/null
+    wait "$p16_pid" 2>/dev/null
+}
+p16_note() {  # $1 notes dir → the path of the one eclipse note, within 180 s
+    local n
+    for _ in $(seq 1 36); do
+        n="$(ls "$1"/eclipse-*.json 2>/dev/null | head -1)"
+        [ -n "$n" ] && { echo "$n"; return 0; }
+        sleep 5
+    done
+    return 1
+}
+p16() {  # $1 package, $2 eclipse dir, $3 run dir
+    local pkg="$1" eclipse="$2" run="$3" notes="$3/p16-notes" ws1="$3/p16-ws-one" ws2="$3/p16-ws-two" note url names health refused
+    rm -rf "$notes" "$ws1" "$ws2"
+    echo "P16 $pkg"
+    p16_start "$eclipse" "$ws1" "$notes" "$run/p16.in" "$run/p16-one.out"
+    note="$(p16_note "$notes")" || { fail "P16 $pkg: no engine note appeared within 180 s; console: $run/p16-one.out"; p16_stop; return; }
+    ok "P16 $pkg: the engine started with the workbench and wrote its note ($(basename "$note"))"
+    url="$(jq -r .endpoint "$note")"
+    if [ "$(jq -r .hostKind "$note")" = eclipse ] && [ "$(jq -r 'has("key")' "$note")" = false ] && [ "$(jq -r .workspacePath "$note")" = "$ws1" ]; then
+        ok "P16 $pkg: the note says hostKind eclipse, names this workspace, and carries no key"
+    else
+        fail "P16 $pkg: the note is not an Eclipse note for $ws1 without a key: $(head -c 300 "$note")"
+    fi
+    p16_session=""
+    curl -sS -m 60 -D "$run/p16.hdr" -o /dev/null -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+        -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"p16","version":"1"}}}' "$url"
+    p16_session="$(grep -i '^mcp-session-id:' "$run/p16.hdr" | tr -d '\r' | cut -d' ' -f2)"
+    names=""
+    for _ in $(seq 1 60); do   # the Java provider binds a moment after the engine starts
+        names="$(p16_mcp "$url" '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | jq -r '[.result.tools[].name] | sort | join(" ")' 2>/dev/null)"
+        case " $names " in *" search_symbols "*) break ;; esac
+        sleep 2
+    done
+    if [ "$names" = "$(jq -r '[.[].name] | sort | join(" ")' "$engine/build/28k-golden-tools.json")" ]; then
+        ok "P16 $pkg: a client at the note's endpoint with no key lists $(echo $names | wc -w) tools, the same names as the headless engine's golden (R7)"
+    else
+        fail "P16 $pkg: the tools listed in Eclipse differ from the headless golden: ${names:-none}"
+    fi
+    health="$(p16_mcp "$url" '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"health_check","arguments":{}}}' | jq -r '.result.content[0].text | fromjson | .data.toolCount' 2>/dev/null)"
+    [ "$health" = "$(echo $names | wc -w)" ] && ok "P16 $pkg: health_check answers toolCount $health" || fail "P16 $pkg: health_check toolCount ${health:-none}, tools listed $(echo $names | wc -w)"
+    refused="$(p16_mcp "$url" '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"load_project","arguments":{"projectPath":"/tmp"}}}')"
+    case "$refused" in *HOST_OWNS_WORKSPACE*) ok "P16 $pkg: load_project answers HOST_OWNS_WORKSPACE" ;; *) fail "P16 $pkg: load_project did not answer HOST_OWNS_WORKSPACE: $(echo "$refused" | head -c 300)" ;; esac
+    p16_stop
+    [ -z "$(ls "$notes"/eclipse-*.json 2>/dev/null)" ] && ok "P16 $pkg: a clean stop deleted the note" || fail "P16 $pkg: the note is still there after a clean stop"
+    # A second workspace: the note moves to the new workspace and the engine answers at its own address, never the first one's.
+    p16_start "$eclipse" "$ws2" "$notes" "$run/p16.in" "$run/p16-two.out"
+    note="$(p16_note "$notes")" || { fail "P16 $pkg: no note for the second workspace; console: $run/p16-two.out"; p16_stop; return; }
+    url="$(jq -r .endpoint "$note")"
+    p16_session=""
+    curl -sS -m 60 -D "$run/p16.hdr" -o /dev/null -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+        -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"p16","version":"1"}}}' "$url"
+    p16_session="$(grep -i '^mcp-session-id:' "$run/p16.hdr" | tr -d '\r' | cut -d' ' -f2)"
+    health="$(p16_mcp "$url" '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"health_check","arguments":{}}}' | jq -r '.result.content[0].text | fromjson | .data.toolCount' 2>/dev/null)"
+    if [ "$(jq -r .workspacePath "$note")" = "$ws2" ] && [ -n "$health" ] && [ "$health" != null ]; then
+        ok "P16 $pkg: relaunched on a second workspace the note names that workspace and its engine answers (toolCount $health)"
+    else
+        fail "P16 $pkg: the second launch's note names $(jq -r .workspacePath "$note"), health_check ${health:-none}"
+    fi
+    p16_stop
+}
+
 echo "R8, R9 and the commit hook"
 shipped="$(ls "$site/plugins" | sed 's/_[0-9].*//')"
 forbidden='^(org\.eclipse\.(jdt|ltk|swt|jface)|org\.jawata\.(jdtpatch|resident)|slf4j\.(simple|nop|jdk14|reload4j)|ch\.qos\.logback)'
@@ -172,12 +254,14 @@ for pkg in java rcp; do
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
     # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"
-    noise="$( [ -f "$log" ] && grep -E 'is ignored|already registered|at org\.jawata\.' "$log" | head -3 )"
+    # frames of the test bundle itself are not jawata's code: HostPortsTest throws an exception on purpose to prove one is logged
+    noise="$( [ -f "$log" ] && grep -E 'is ignored|already registered|at org\.jawata\.' "$log" | grep -v 'at org\.jawata\.eclipse\.tests\.' | head -3 )"
     if [ -n "$tests_out" ] && grep -q -- "-install $eclipse " "$tests_out" && [ -z "$noise" ]; then
         ok "D6 $pkg: Eclipse's log in the test run has no rejected registration and no exception from jawata's code"
     else
         fail "D6 $pkg: Eclipse's log in the test run: ${noise:-(the tests did not run in this download)}; log: $log"
     fi
+    p16 "$pkg" "$eclipse" "$run"
 done
 
 echo
