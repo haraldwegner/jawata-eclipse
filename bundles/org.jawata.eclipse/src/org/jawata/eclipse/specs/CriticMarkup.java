@@ -19,11 +19,11 @@ public final class CriticMarkup {
     /** The three marks. */
     public enum Kind {
         /** {@code {>> … <<}}. */
-        COMMENT("{>>", "<<}", "(?s)\\{>>(.*?)<<\\}"),
+        COMMENT("{>>", "<<}", "(?s)\\{>>((?:(?!\\n[ \\t]*\\n).)*?)<<\\}"),
         /** {@code {++ … ++}}. */
-        ADDITION("{++", "++}", "(?s)\\{\\+\\+(.*?)\\+\\+\\}"),
+        ADDITION("{++", "++}", "(?s)\\{\\+\\+((?:(?!\\n[ \\t]*\\n).)*?)\\+\\+\\}"),
         /** {@code {-- … --}}. */
-        REMOVAL("{--", "--}", "(?s)\\{--(.*?)--\\}");
+        REMOVAL("{--", "--}", "(?s)\\{--((?:(?!\\n[ \\t]*\\n).)*?)--\\}");
 
         private final String open;
         private final String close;
@@ -91,7 +91,16 @@ public final class CriticMarkup {
             }
         }
         found.sort((a, b) -> Integer.compare(a.start(), b.start()));
-        return found;
+        // a mark inside another mark is part of that mark's text, not a mark of its own
+        List<Mark> apart = new ArrayList<>();
+        int taken = 0;
+        for (Mark mark : found) {
+            if (mark.start() >= taken) {
+                apart.add(mark);
+                taken = mark.end();
+            }
+        }
+        return apart;
     }
 
     /**

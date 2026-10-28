@@ -392,11 +392,11 @@ for pkg in java rcp; do
     # P13b (plan Stage 13b, spec D14, Amendment 1): in this download a Markdown file's comment and suggested change made with the two
     # commands, and an addition and a removal typed by hand, show as five callouts in the preview, and accept, reject and resolve each edit
     # only their own mark (CalloutsTest, 1 test, in the real editor and the real commands); the mark reading and the five commands' text
-    # (CriticMarkupTest, 12 tests).
+    # (CriticMarkupTest, 14 tests).
     callouts="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.CalloutsTest$' "$tests_out" | head -1)"
     criticmarks="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.CriticMarkupTest$' "$tests_out" | head -1)"
     case "$callouts|$criticmarks" in
-        "Tests run: 1, Failures: 0, Errors: 0"*"|Tests run: 12, Failures: 0, Errors: 0"*) ok "P13b $pkg: the fixture's comment, suggested change, typed addition and typed removal show as five callouts in the preview; accepting, rejecting and resolving each change only their own mark through the real commands (${callouts%%,*}; unit: ${criticmarks%%,*})" ;;
+        "Tests run: 1, Failures: 0, Errors: 0"*"|Tests run: 14, Failures: 0, Errors: 0"*) ok "P13b $pkg: the fixture's comment, suggested change, typed addition and typed removal show as five callouts in the preview; accepting, rejecting and resolving each change only their own mark through the real commands (${callouts%%,*}; unit: ${criticmarks%%,*})" ;;
         *) fail "P13b $pkg: the callout tests did not pass in this download (${callouts:-they did not run}; ${criticmarks:-the mark tests did not run})" ;;
     esac
     # P23 (plan Stage 23, spec D10, his pick of 2026-10-28): in this download the chat is one view that opens where the person chose, in the

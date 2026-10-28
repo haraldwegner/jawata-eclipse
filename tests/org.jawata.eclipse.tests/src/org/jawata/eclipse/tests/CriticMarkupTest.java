@@ -106,6 +106,22 @@ public class CriticMarkupTest {
     }
 
     @Test
+    public void aMarkDoesNotRunOnAcrossABlankLine() {
+        List<Mark> marks = CriticMarkup.marks("stray {>>never closed\n\nnext paragraph {>>real<<} end");
+        assertEquals(1, marks.size(), "the stray opening does not swallow the paragraph after it: " + marks);
+        assertEquals("real", marks.get(0).text());
+    }
+
+    @Test
+    public void aMarkInsideAnotherMarkIsPartOfItsText() {
+        String text = "a {++x {>>c<<} y++} b";
+        List<Mark> marks = CriticMarkup.marks(text);
+        assertEquals(1, marks.size(), marks.toString());
+        assertEquals(Kind.ADDITION, marks.get(0).kind());
+        assertTrue(CriticMarkup.toHtml(text).endsWith("</ins> b"), CriticMarkup.toHtml(text));
+    }
+
+    @Test
     public void aCaretOutsideEveryMarkFindsNone() {
         assertTrue(CriticMarkup.markAt("plain {>>c<<} text", 1).isEmpty());
     }

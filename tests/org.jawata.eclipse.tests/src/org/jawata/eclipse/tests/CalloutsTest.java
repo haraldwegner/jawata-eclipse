@@ -65,6 +65,7 @@ public class CalloutsTest {
         run(CalloutCommandHandler.ACCEPT, null);
         text = text.replace("{++by hand++}", "by hand");
         assertEquals(text, documentText(), "accepting an addition puts its text in the file and the mark is gone");
+        assertEquals(4, callouts(WikiTextShowsSpecsTest.previewHtmlWhen(shown -> callouts(shown) <= 4)), "and its callout is gone from the preview");
 
         select("new name++}", 0, 0);
         run(CalloutCommandHandler.REJECT, null);
@@ -83,6 +84,15 @@ public class CalloutsTest {
         html = WikiTextShowsSpecsTest.previewHtmlWhen(shown -> callouts(shown) <= 1);
         assertEquals(1, callouts(html), "only the typed removal is left: " + html);
         assertEquals(original.replace("{++by hand++}", "by hand"), documentText(), "every other byte of the file is as it was");
+
+        // the file itself: saved from the editor and read back from disk, it is plain text and an agent reading it finds the marks that are left
+        Display.getDefault().syncExec(() -> editor().doSave(new org.eclipse.core.runtime.NullProgressMonitor()));
+        String onDisk = new String(file.getContents().readAllBytes(), StandardCharsets.UTF_8);
+        assertEquals(original.replace("{++by hand++}", "by hand"), onDisk, "the saved file holds the text with its marks as written");
+        org.junit.jupiter.api.Assertions.assertFalse(onDisk.contains("<span") || onDisk.contains("<ins") || onDisk.contains("<del"),
+            "no HTML was written into the file: " + onDisk);
+        assertEquals(java.util.List.of("REMOVAL"), org.jawata.eclipse.specs.CriticMarkup.marks(onDisk).stream().map(mark -> mark.kind().name()).toList(),
+            "an agent reading the saved file finds the one mark that is left");
     }
 
     private static String fixture() throws Exception {

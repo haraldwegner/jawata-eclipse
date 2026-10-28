@@ -17,8 +17,8 @@ import org.eclipse.ui.texteditor.ITextEditor;
 /**
  * Spec D14: the five commands the person has on a Markdown file's comments and suggested changes. "Comment" and "Suggest change" write
  * a mark at the selection; "Accept", "Reject" and "Resolve" act on the mark the caret is in. Each one edits the open document and nothing
- * else, as a single undoable change; the person saves the file as they would any edit. Only the person runs them: the agent has no way
- * to invoke a command here.
+ * else, as a single undoable change; the person saves the file as they would any edit. Nothing here runs a command by itself: they run
+ * from the editor's menu or a key the person presses.
  */
 public final class CalloutCommandHandler extends AbstractHandler {
 
