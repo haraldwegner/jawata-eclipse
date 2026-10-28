@@ -123,9 +123,8 @@ public class ReadOnlyToolRunTest {
         Map<String, String> files = new TreeMap<>();
         for (IProject project : projects) {
             Path root = project.getLocation().toFile().toPath();
-            hash(files, root, root.resolve(".project"));
-            hash(files, root, root.resolve(".classpath"));
-            hashAll(files, root, root.resolve(".settings"));
+            // the whole project folder: a file the engine left anywhere in it is seen; only bin/ is Eclipse's own build output
+            hashAll(files, root, root);
         }
         Path workspace = ResourcesPlugin.getWorkspace().getRoot().getLocation().toFile().toPath();
         hashAll(files, workspace, workspace.resolve(".metadata/.plugins/org.eclipse.core.runtime/.settings"));
@@ -135,7 +134,7 @@ public class ReadOnlyToolRunTest {
     private static void hashAll(Map<String, String> into, Path base, Path dir) throws Exception {
         if (Files.isDirectory(dir)) {
             try (Stream<Path> walk = Files.walk(dir)) {
-                for (Path file : walk.filter(Files::isRegularFile).toList()) {
+                for (Path file : walk.filter(Files::isRegularFile).filter(f -> !base.relativize(f).startsWith("bin")).toList()) {
                     hash(into, base, file);
                 }
             }
@@ -155,6 +154,8 @@ public class ReadOnlyToolRunTest {
         McpEndpoint at = Await.found("the listener came up", () -> engine.endpoint().reached());
         McpClient client = McpClient.connect(at.url());
         List<IProject> projects = List.of(maven(), gradle(), plugin());
+        // read by scripts/28k-e2e.sh, which reports whether the real m2e, Buildship and PDE natures were under test in each download
+        System.out.println("jawata-fixture " + naturesHere());
         try {
             // Settle first: creating the fixtures is Eclipse writing its own files, and only what the engine does after is measured.
             String[] lastSeen = { "no answer yet" };
@@ -185,6 +186,9 @@ public class ReadOnlyToolRunTest {
             answers.add(client.call("analyze", "{\"kind\":\"type\",\"typeName\":\"p.Greeter\"}"));
             answers.add(client.call("get_diagnostics", "{}"));
             answers.add(client.call("inspect", "{\"kind\":\"project_structure\"}"));
+            // the two that reach the reconciler: a change scan with refreshLocal, and a build joined
+            answers.add(client.call("refresh_workspace", "{}"));
+            answers.add(client.call("compile_workspace", "{}"));
             for (JsonNode answer : answers) {
                 assertFalse(McpClient.failed(answer), "a read-only tool answered with an error: " + answer + " (" + naturesHere() + ")");
             }

@@ -4,10 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
+
+import org.eclipse.core.runtime.Platform;
 import org.jawata.eclipse.host.EclipseEngine;
 import org.jawata.eclipse.host.EngineStartup;
+import org.jawata.spi.host.EngineHost;
 import org.jawata.spi.host.McpEndpoint;
 import org.junit.jupiter.api.Test;
+import org.osgi.framework.FrameworkUtil;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -33,5 +38,35 @@ public class EngineRunsInEclipseTest {
 
         JsonNode health = client.call("health_check", "{}");
         assertFalse(McpClient.failed(health), "health_check answers without an error: " + health);
+    }
+
+    @Test
+    public void theProjectToolsAnswerThatEclipseOwnsTheWorkspace() throws Exception {
+        EclipseEngine engine = Await.found("the workbench started the engine", EngineStartup::running);
+        McpEndpoint at = Await.found("the listener came up", () -> engine.endpoint().reached());
+        McpClient client = McpClient.connect(at.url());
+        Await.found("the Java tools are listed", () -> client.toolNames().filter(names -> names.contains("load_project")));
+        String tmp = System.getProperty("java.io.tmpdir");
+
+        String load = McpClient.text(client.call("load_project", "{\"projectPath\":\"" + tmp + "\"}"));
+        String add = McpClient.text(client.call("project", "{\"action\":\"add\",\"projectPath\":\"" + tmp + "\"}"));
+        String remove = McpClient.text(client.call("project", "{\"action\":\"remove\",\"projectKey\":\"anything\"}"));
+
+        assertTrue(load.contains("HOST_OWNS_WORKSPACE"), "load_project: " + load);
+        assertTrue(add.contains("HOST_OWNS_WORKSPACE"), "project add: " + add);
+        assertTrue(remove.contains("HOST_OWNS_WORKSPACE"), "project remove: " + remove);
+    }
+
+    @Test
+    public void theEnginesWorkingFoldersAreInThePluginsStateAreaAndNotInThePersonsWorkspace() throws Exception {
+        EclipseEngine engine = Await.found("the workbench started the engine", EngineStartup::running);
+        EngineHost host = engine.engine().orElseThrow().host();
+        Path state = Platform.getStateLocation(FrameworkUtil.getBundle(EclipseEngine.class)).toFile().toPath();
+
+        assertTrue(host.directories().runtimeDir().startsWith(state), "runtime: " + host.directories().runtimeDir());
+        assertTrue(host.directories().coverageDir().startsWith(state), "coverage: " + host.directories().coverageDir());
+        assertTrue(host.directories().fieldDir().startsWith(state), "field: " + host.directories().fieldDir());
+        assertTrue(host.directories().workspaceRoot().orElseThrow().startsWith(state),
+            "workspace root: " + host.directories().workspaceRoot());
     }
 }

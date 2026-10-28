@@ -5,8 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -26,12 +29,13 @@ import org.osgi.framework.FrameworkUtil;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Plan Stage 16, step 16.5: the note an Eclipse engine leaves for studio and for sibling engines (contract §14.1). The running
- * engine's own note is read back by the engine's own reader, which is the other side of the contract; a project added to the
- * workspace rewrites it; a clean stop deletes it; and a note whose process is gone is classified stale, which is what a killed
- * Eclipse leaves behind.
+ * engine's own note is read back by the engine's own reader, which is the other side of the contract, and is named by the hash the
+ * contract fixes; a project added to the workspace rewrites it; a clean stop deletes it; and a note whose process has really ended
+ * is classified stale by the engine's own reader, which is what a killed Eclipse leaves behind.
  */
 public class EngineNoteTest {
 
@@ -68,6 +72,10 @@ public class EngineNoteTest {
         assertEquals(ProcessHandle.current().pid(), written.path("pid").asLong(), "the note names this process");
         assertEquals(at.url().toString(), written.path("endpoint").asText(), "and the address the engine listens at");
         assertTrue(written.path("workspacePath").asText().length() > 0);
+        Path canonical = Path.of(WORKSPACE.getRoot().getLocation().toOSString()).toRealPath();
+        String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical.toString().getBytes(StandardCharsets.UTF_8)));
+        assertEquals("eclipse-" + hash.substring(0, 16) + ".json", note.getFileName().toString(),
+            "the file is named by the first 16 hex of the SHA-256 of the canonical workspace path (contract §14.1)");
         assertFalse(written.has("key"), "the note carries no key: the endpoint inside Eclipse has none");
 
         List<EngineNotes.Reading> readings = EngineNotes.read(dir, EngineNotes.OS);
@@ -98,9 +106,18 @@ public class EngineNoteTest {
                 ILog.of(FrameworkUtil.getBundle(EngineNoteTest.class)));
             writer.ready(new McpEndpoint(URI.create("http://127.0.0.1:1/mcp"), Optional.empty()));
             assertTrue(Files.exists(writer.file()), "the note is written when the engine is ready");
-            assertEquals(EngineNotes.Status.LIVE, EngineNotes.read(dir, (pid, started) -> true).get(0).status());
-            assertEquals(EngineNotes.Status.STALE, EngineNotes.read(dir, (pid, started) -> false).get(0).status(),
-                "a note whose process is gone is stale, which is all a killed Eclipse leaves");
+            assertEquals(EngineNotes.Status.LIVE, EngineNotes.read(dir, EngineNotes.OS).get(0).status(),
+                "the engine's own reader finds this process, which the note names, alive");
+
+            // A killed Eclipse leaves its note with a process id nobody has: a real process that has ended stands for it.
+            Process ended = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-version")
+                .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+            ended.waitFor();
+            ObjectNode killed = (ObjectNode) JSON.readTree(Files.readString(writer.file()));
+            killed.put("pid", ended.pid());
+            Files.writeString(writer.file(), JSON.writeValueAsString(killed), StandardCharsets.UTF_8);
+            assertEquals(EngineNotes.Status.STALE, EngineNotes.read(dir, EngineNotes.OS).get(0).status(),
+                "a note whose process has ended is stale, which is all a killed Eclipse leaves");
 
             writer.close();
 

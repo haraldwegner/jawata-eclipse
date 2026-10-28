@@ -1,6 +1,5 @@
 package org.jawata.eclipse.host;
 
-import java.util.Map;
 import java.util.Optional;
 
 import org.eclipse.core.resources.IWorkspace;
@@ -80,7 +79,12 @@ public final class EclipseEngine implements AutoCloseable {
         }
         EclipsePersonChannel person = new EclipsePersonChannel(log, PLUGIN_ID);
         EclipseWorkspace folders = new EclipseWorkspace(workspace.getRoot());
-        EclipseSettings settings = new EclipseSettings(InstanceScope.INSTANCE.getNode(PLUGIN_ID), Map.of(), System::getProperty);
+        // The engine's working folders default to the plug-in's state area; left unset, the engine falls back to the instance area,
+        // which in the IDE is the folder the person keeps their projects in (contract §3.3).
+        java.nio.file.Path stateArea = org.eclipse.core.runtime.Platform
+            .getStateLocation(org.osgi.framework.FrameworkUtil.getBundle(EclipseEngine.class)).toFile().toPath();
+        EclipseSettings settings = new EclipseSettings(InstanceScope.INSTANCE.getNode(PLUGIN_ID), EngineDefaults.inStateArea(stateArea),
+            System::getProperty);
         EclipseDirectories directories = new EclipseDirectories(settings,
             () -> folders.folders().stream().filter(ProjectFolder::open).map(ProjectFolder::path).toList());
         model = new EclipseJdtService(workspace.getRoot(), OPERATION_TIMEOUT_SECONDS);

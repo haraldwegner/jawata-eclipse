@@ -139,15 +139,18 @@ p16() {  # $1 package, $2 eclipse dir, $3 run dir
         case " $names " in *" search_symbols "*) break ;; esac
         sleep 2
     done
-    if [ "$names" = "$(jq -r '[.[].name] | sort | join(" ")' "$engine/build/28k-golden-tools.json")" ]; then
-        ok "P16 $pkg: a client at the note's endpoint with no key lists $(echo $names | wc -w) tools, the same names as the headless engine's golden (R7)"
+    # the golden of the release the plug-in ships (engine.version), not of whatever the engine checkout has moved on to
+    golden="$(git -C "$engine" show "v$(cat "$here/engine.version"):build/28k-golden-tools.json" | jq -r '[.[].name] | sort | join(" ")')"
+    if [ -n "$golden" ] && [ "$names" = "$golden" ]; then
+        ok "P16 $pkg: a client at the note's endpoint with no key lists $(echo $names | wc -w) tools, the same names as the headless golden of engine $(cat "$here/engine.version") (R7)"
     else
         fail "P16 $pkg: the tools listed in Eclipse differ from the headless golden: ${names:-none}"
     fi
     health="$(p16_mcp "$url" '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"health_check","arguments":{}}}' | jq -r '.result.content[0].text | fromjson | .data.toolCount' 2>/dev/null)"
     [ "$health" = "$(echo $names | wc -w)" ] && ok "P16 $pkg: health_check answers toolCount $health" || fail "P16 $pkg: health_check toolCount ${health:-none}, tools listed $(echo $names | wc -w)"
     refused="$(p16_mcp "$url" '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"load_project","arguments":{"projectPath":"/tmp"}}}')"
-    case "$refused" in *HOST_OWNS_WORKSPACE*) ok "P16 $pkg: load_project answers HOST_OWNS_WORKSPACE" ;; *) fail "P16 $pkg: load_project did not answer HOST_OWNS_WORKSPACE: $(echo "$refused" | head -c 300)" ;; esac
+    added="$(p16_mcp "$url" '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"project","arguments":{"action":"add","projectPath":"/tmp"}}}')"
+    case "$refused$added" in *HOST_OWNS_WORKSPACE*HOST_OWNS_WORKSPACE*) ok "P16 $pkg: load_project and project add both answer HOST_OWNS_WORKSPACE" ;; *) fail "P16 $pkg: the project tools did not answer HOST_OWNS_WORKSPACE: load_project $(echo "$refused" | head -c 200); project add $(echo "$added" | head -c 200)" ;; esac
     p16_stop
     [ -z "$(ls "$notes"/eclipse-*.json 2>/dev/null)" ] && ok "P16 $pkg: a clean stop deleted the note" || fail "P16 $pkg: the note is still there after a clean stop"
     # A second workspace: the note moves to the new workspace and the engine answers at its own address, never the first one's.
@@ -251,6 +254,8 @@ for pkg in java rcp; do
     else
         fail "D6/D7 $pkg: the PDE tests did not pass inside this download (exit $tests_rc, ${summary:-no test summary}); output: $tests_out"
     fi
+    # Stage 16's snapshot test attaches the m2e, Buildship and PDE natures only when the running Eclipse has them; say which it was here
+    echo "  info  D2 $pkg: $(grep -h 'jawata-fixture natures present here' "$tests_out" | head -1 | sed -E 's/^.*jawata-fixture //')"
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
     # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"
