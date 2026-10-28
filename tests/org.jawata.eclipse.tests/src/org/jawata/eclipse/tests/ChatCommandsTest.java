@@ -46,6 +46,7 @@ public class ChatCommandsTest {
     private static List<String> declared() {
         List<String> names = new ArrayList<>(ChatCommandHandler.PAGE_COMMANDS.keySet());
         names.add(ChatCommandHandler.OPEN_CHAT);
+        names.add(ChatCommandHandler.OPEN_CHAT_IN_EDITOR);
         names.add(ChatCommandHandler.CONFIGURE_AGENT);
         return names;
     }

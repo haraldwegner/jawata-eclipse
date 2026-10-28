@@ -377,6 +377,14 @@ for pkg in java rcp; do
         "Tests run: 6, Failures: 0, Errors: 0"*) ok "P22 $pkg: the import command on the fixture workspace gives the projects an import by hand gives, through Eclipse's own Smart Import wizard, the person confirming each folder (${imports%%,*}); path taken: the registry wizard, pre-filled by name" ;;
         *) fail "P22 $pkg: the VS Code workspace import tests did not pass in this download (${imports:-they did not run})" ;;
     esac
+    # P23 (plan Stage 23, spec D10): in this download the chat opens in both places the person can pick between: as a view and as a large
+    # page in the editor area (Window menu entry), each loading the chat and taking a chat command, and one editor however often it is
+    # opened (ChatPlacementsTest, 4 tests). The pick between them is the person's and not tested here.
+    placements="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.ChatPlacementsTest$' "$tests_out" | head -1)"
+    case "$placements" in
+        "Tests run: 4, Failures: 0, Errors: 0"*) ok "P23 $pkg: the chat opens as a view and as a page in the editor area, each loads the chat and takes a command, the editor placement has its Window menu entry, and a second opening shows the same page (${placements%%,*})" ;;
+        *) fail "P23 $pkg: the chat placement tests did not pass in this download (${placements:-they did not run})" ;;
+    esac
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
     # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"
