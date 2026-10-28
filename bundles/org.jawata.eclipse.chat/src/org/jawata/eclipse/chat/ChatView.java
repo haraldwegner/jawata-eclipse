@@ -5,6 +5,7 @@ import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.part.ViewPart;
+import org.jawata.eclipse.access.EngineAddress;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 
@@ -23,7 +24,7 @@ public final class ChatView extends ViewPart {
     @Override
     public void createPartControl(Composite parent) {
         page = new ChatPage(parent);
-        host = new ChatHost(page, new PreferencesChatSettings(), ChatView::log);
+        host = new ChatHost(page, new PreferencesChatSettings(), ChatView::log, EngineAddress::url);
     }
 
     @Override

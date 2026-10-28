@@ -46,7 +46,7 @@ final class HostTestPage implements AutoCloseable {
             Shell created = new Shell(Display.getDefault(), SWT.SHELL_TRIM);
             created.setLayout(new FillLayout());
             ChatPage chatPage = new ChatPage(created, builtPage().toUri().toString());
-            ChatHost chatHost = new ChatHost(chatPage, settings, line -> { });
+            ChatHost chatHost = new ChatHost(chatPage, settings, line -> { }, Optional::empty);
             chatPage.setHandler(call -> {
                 calls.add(call);
                 return chatHost.handle(call);

@@ -11,5 +11,7 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.ui
 Import-Package: com.fasterxml.jackson.core,
  com.fasterxml.jackson.databind,
+ com.fasterxml.jackson.databind.node,
+ org.jawata.eclipse.access,
  org.osgi.framework
 Export-Package: org.jawata.eclipse.chat;x-friends:="org.jawata.eclipse.tests"

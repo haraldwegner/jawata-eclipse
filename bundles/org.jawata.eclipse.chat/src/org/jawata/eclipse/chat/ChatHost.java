@@ -6,7 +6,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,18 +33,21 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
     private final ChatSettings settings;
     private final Consumer<String> log;
     private final AgentRelay relay;
+    private final McpOffer offer;
     private final ObjectMapper json = new ObjectMapper();
 
     /**
      * @param page the page this host serves; its handler is set here
      * @param settings what the chat reads from the person's setup
      * @param log where the host and the agents' standard error write
+     * @param engineUrl where the engine in this Eclipse can be reached now, empty when it cannot yet; the agent is offered it as an MCP server
      */
-    public ChatHost(ChatPage page, ChatSettings settings, Consumer<String> log) {
+    public ChatHost(ChatPage page, ChatSettings settings, Consumer<String> log, Supplier<Optional<String>> engineUrl) {
         this.page = page;
         this.settings = settings;
         this.log = log;
         this.relay = new AgentRelay(this, log);
+        this.offer = new McpOffer(engineUrl);
         page.setHandler(this::handle);
     }
 
@@ -66,7 +71,7 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
                     yield null;
                 }
                 case "write" -> {
-                    relay.send(op.path("id").asText(), op.path("message").asText());
+                    relay.send(op.path("id").asText(), offer.apply(op.path("message").asText()));
                     yield null;
                 }
                 case "kill" -> String.valueOf(relay.kill(op.path("id").asText()));
