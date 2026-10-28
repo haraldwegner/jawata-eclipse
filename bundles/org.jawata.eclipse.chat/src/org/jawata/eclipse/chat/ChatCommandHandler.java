@@ -15,6 +15,7 @@ import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.IViewReference;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PartInitException;
@@ -95,6 +96,11 @@ public final class ChatCommandHandler extends AbstractHandler implements IExecut
         }
         if (OPEN_CHAT_IN_EDITOR.equals(name)) {
             try {
+                // one chat per window: the editor takes the view's place, so no second conversation runs beside the first
+                IViewReference open = window.getActivePage().findViewReference(ChatView.ID);
+                if (open != null) {
+                    window.getActivePage().hideView(open);
+                }
                 window.getActivePage().openEditor(new ChatEditorInput(), ChatEditor.ID);
             } catch (PartInitException failed) {
                 throw new ExecutionException("The chat cannot be shown in the editor area: " + failed.getMessage(), failed);

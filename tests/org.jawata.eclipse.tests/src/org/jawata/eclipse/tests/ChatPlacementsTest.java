@@ -24,6 +24,9 @@ import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.ImageLoader;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IWorkbenchPage;
@@ -171,6 +174,41 @@ public class ChatPlacementsTest {
         }
     }
 
+    /** Finds an entry of the workbench's real Window menu, filling the menu as Eclipse does when the person opens it. */
+    private static MenuItem windowMenuItem(String label) {
+        Menu bar = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell().getMenuBar();
+        for (MenuItem top : bar.getItems()) {
+            if (top.getMenu() != null && "Window".equals(top.getText().replace("&", ""))) {
+                top.getMenu().notifyListeners(SWT.Show, new Event());
+                for (MenuItem item : top.getMenu().getItems()) {
+                    if (item.getText().replace("&", "").startsWith(label)) {
+                        return item;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    @Test
+    public void theWindowMenuEntryOpensTheChatInTheEditorArea() throws Exception {
+        IWorkbenchPage page = UiThread.call(ChatPlacementsTest::activePage);
+        try {
+            MenuItem entry = UiThread.call(() -> windowMenuItem("Open jawata chat in the editor area"));
+            assertNotNull(entry, "the Window menu of the running workbench has the entry");
+            UiThread.call(() -> {
+                entry.notifyListeners(SWT.Selection, new Event());
+                return null;
+            });
+            Await.found("the chat editor opened from the menu entry", () -> Optional.ofNullable(UiThread.call(() -> page.findEditor(new ChatEditorInput()))));
+        } finally {
+            UiThread.call(() -> {
+                page.closeEditor(page.findEditor(new ChatEditorInput()), false);
+                return null;
+            });
+        }
+    }
+
     @Test
     public void theEditorPlacementHasAMenuEntryInTheWindowMenu() {
         long entries = Arrays.stream(Platform.getExtensionRegistry().getConfigurationElementsFor("org.eclipse.ui.menus"))
@@ -181,6 +219,24 @@ public class ChatPlacementsTest {
                 && command.getAttribute("tooltip") != null && !command.getAttribute("tooltip").isBlank())
             .count();
         assertEquals(1, entries, "one labelled entry with a mouseover opens the chat in the editor area from the Window menu");
+    }
+
+    @Test
+    public void openingTheEditorWhileTheViewIsOpenReplacesTheViewSoOneChatRuns() throws Exception {
+        IWorkbenchPage page = UiThread.call(ChatPlacementsTest::activePage);
+        try {
+            run(ChatCommandHandler.OPEN_CHAT);
+            assertNotNull(UiThread.call(() -> page.findView(ChatView.ID)), "the view is open first");
+            run(ChatCommandHandler.OPEN_CHAT_IN_EDITOR);
+            assertNull(UiThread.call(() -> page.findView(ChatView.ID)), "the editor took the view's place: no second chat beside it");
+            assertTrue(UiThread.call(() -> page.findEditor(new ChatEditorInput())) instanceof ChatEditor, "and the chat is in the editor area");
+        } finally {
+            UiThread.call(() -> {
+                page.closeEditor(page.findEditor(new ChatEditorInput()), false);
+                page.hideView(page.findViewReference(ChatView.ID));
+                return null;
+            });
+        }
     }
 
     @Test

@@ -379,10 +379,10 @@ for pkg in java rcp; do
     esac
     # P23 (plan Stage 23, spec D10): in this download the chat opens in both places the person can pick between: as a view and as a large
     # page in the editor area (Window menu entry), each loading the chat and taking a chat command, and one editor however often it is
-    # opened (ChatPlacementsTest, 4 tests). The pick between them is the person's and not tested here.
+    # opened (ChatPlacementsTest, 5 tests). The pick between them is the person's and not tested here.
     placements="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.ChatPlacementsTest$' "$tests_out" | head -1)"
     case "$placements" in
-        "Tests run: 4, Failures: 0, Errors: 0"*) ok "P23 $pkg: the chat opens as a view and as a page in the editor area, each loads the chat and takes a command, the editor placement has its Window menu entry, and a second opening shows the same page (${placements%%,*})" ;;
+        "Tests run: 6, Failures: 0, Errors: 0"*) ok "P23 $pkg: the chat opens as a view and as a page in the editor area, each loads the chat and takes a command, the Window menu entry of the running workbench opens the editor page, a second opening shows the same page, and opening the editor with the view open leaves one chat (${placements%%,*})" ;;
         *) fail "P23 $pkg: the chat placement tests did not pass in this download (${placements:-they did not run})" ;;
     esac
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
