@@ -13,3 +13,19 @@ Eclipse 4.41 Java download with the plug-in installed, in a virtual screen (X11)
 
 Pictures: `eclipse-terminal-default-font.png` and `eclipse-terminal-dejavu-sans-mono.png`.
 The same output in a terminal on this machine was not captured at the same size; the plan asks for it beside these.
+
+## The jawata terminal, same output (2026-10-28)
+
+`jawata-terminal.png`: the jawata terminal view in the same Eclipse 4.41 Java download and virtual screen, the same fixture typed
+(`bash /tmp/jawata-fixture.sh`: colour bars, bold/italic/underline/reverse, true colour, a box, block characters, check marks, an emoji).
+
+| What | Eclipse's Terminal | jawata terminal |
+|---|---|---|
+| Typing | works | works |
+| Colours and text styles | drawn | drawn |
+| Box frame | horizontal bars missing, frame broken | one closed frame |
+| Block characters | partly drawn | drawn |
+| Emoji | `??` | drawn |
+
+The same output in a native terminal on this machine was not captured: gnome-terminal gave a blank screen in the virtual display
+(no desktop session there). To be compared by eye on his own screen.
