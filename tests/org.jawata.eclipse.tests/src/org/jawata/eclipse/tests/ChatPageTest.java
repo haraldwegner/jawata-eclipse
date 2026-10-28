@@ -66,12 +66,6 @@ public class ChatPageTest {
         return out.toString();
     }
 
-    private static Object onThread(Supplier<Object> read) {
-        AtomicReference<Object> value = new AtomicReference<>();
-        Display.getDefault().syncExec(() -> value.set(read.get()));
-        return value.get();
-    }
-
     @Test
     public void aPageThatSpeaksAnotherContractThanTheBuildRecordedIsReportedToThePerson() throws Exception {
         int built = ChatPage.builtContract().orElseThrow();
@@ -118,7 +112,7 @@ public class ChatPageTest {
             JsonNode started = json.readTree(calls.get(positionOf("started")));
             assertEquals(recorded, started.path("contract").asInt(-1), "it carries the contract it was built against: " + started);
             assertTrue(positionOf("config") >= 0 && positionOf("config") < positionOf("started"), "it asked for its configuration before it started: " + calls);
-            Object mounted = onThread(() -> ((Browser) page.get().getChildren()[0]).evaluate("return document.getElementById('root').childElementCount;"));
+            Object mounted = UiThread.call(() ->((Browser) page.get().getChildren()[0]).evaluate("return document.getElementById('root').childElementCount;"));
             assertTrue(((Number) mounted).intValue() > 0, "the view is mounted in the page: " + pageState(page.get()));
         } finally {
             Display.getDefault().syncExec(() -> {

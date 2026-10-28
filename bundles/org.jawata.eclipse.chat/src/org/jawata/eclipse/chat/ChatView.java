@@ -31,6 +31,8 @@ public final class ChatView extends ViewPart {
     @Override
     public void setFocus() {
         if (page != null) {
+            // the theme may have changed while the view was hidden, where nothing told it
+            page.refreshTheme();
             page.setFocus();
         }
     }

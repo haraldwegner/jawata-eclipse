@@ -71,13 +71,16 @@ window.playSession = async (spec) => {
  * Step 21.7: a chat that is driven from Java by commands (connectAgent, then sendPrompt with its text), as the Eclipse commands drive the
  * real one; the view stream is sent to Java as above once the turn has ended.
  */
-window.playByCommands = async () => {
+window.playByCommands = async (spec = {}) => {
+  const turns = spec.turns ?? 1;
   const chat = createChat(host.ports);
   const port = new RecordingPort();
   chat.controller.attach(port);
-  commandTable = chatCommands(chat);
+  commandTable = chatCommands(chat, (error) => {
+    bridge.call({ op: 'log', message: `ERROR a prompt the person sent failed: ${error instanceof Error ? error.message : String(error)}` });
+  });
   try {
-    for (let i = 0; i < 400 && !port.toView.some((message) => message.type === 'promptEnd'); i++) {
+    for (let i = 0; i < 400 && port.toView.filter((message) => message.type === 'promptEnd').length < turns; i++) {
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     await new Promise((resolve) => setTimeout(resolve, 300));

@@ -19,10 +19,16 @@ import { chatCommands, commandQueue } from './commands.js';
 const root = document.getElementById('root');
 if (!root) { throw new Error('the page has no root element'); }
 
-// the page fills the browser; the theme (step 21.10) is pushed into #jawata-theme
+// the page fills the browser
 const reset = document.createElement('style');
 reset.textContent = 'html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }';
 document.head.appendChild(reset);
+
+// the Eclipse theme (step 21.10): Java sends {kind:'theme', css} at the start and whenever the person changes the theme; the css sets the
+// view's neutral inputs (--jc-host-*), and replacing it restyles the open view at once
+const theme = document.createElement('style');
+theme.id = 'jawata-theme';
+document.head.appendChild(theme);
 
 const bridge = {
   call(op) {
@@ -34,19 +40,26 @@ const bridge = {
 // events Java delivers before the chat exists are kept, in order
 const early = [];
 let receive = (message) => { early.push(message); };
-window.jawataHostDeliver = (text) => { receive(JSON.parse(text)); };
+window.jawataHostDeliver = (text) => {
+  const message = JSON.parse(text);
+  if (message.kind === 'theme') { theme.textContent = message.css; } else { receive(message); }
+};
 
 let started = false;
 function start() {
   if (started) { return; }
   started = true;
+  const first = bridge.call({ op: 'theme' });
+  if (first && first.css) { theme.textContent = first.css; }
   const host = createEclipseHost(bridge, bridge.call({ op: 'config' }));
   receive = host.receive;
   early.splice(0).forEach(receive);
   const chat = createChat(host.ports);
   const link = createInProcessLink();
   chat.controller.attach(link.port);
-  const commands = chatCommands(chat);
+  const commands = chatCommands(chat, (error) => {
+    bridge.call({ op: 'log', message: `ERROR a prompt the person sent failed: ${error instanceof Error ? error.message : String(error)}` });
+  });
   const queue = commandQueue(() => commands, bridge);
   const events = host.receive;
   receive = (message) => { if (message.kind === 'command') { queue(message); } else { events(message); } };

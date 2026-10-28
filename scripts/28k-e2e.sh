@@ -343,6 +343,30 @@ for pkg in java rcp; do
         "Tests run: "[0-9]*", Failures: 0, Errors: 0"*) ok "P19 $pkg: Run for jawata starts the program in Run mode with the debug agent on an unsaved copy and the saved file is untouched, the debugger attaches, the person's Debug ends the agent's session and is not shared (${runs%%,*})" ;;
         *) fail "P19 $pkg: the Run for jawata tests did not pass in this download (${runs:-they did not run})" ;;
     esac
+    # P21 (plan Stage 21, W6): in this download the chat runs in the SWT Browser page. The chat bundle and its tests are in the build; each
+    # class below must have run with no failure, and the node that builds the page is on the PATH. What they prove, class by class:
+    #   AgentRelayTest, McpOfferTest         the agent's program is started, its lines relayed, and it is offered the engine's tools
+    #   ChatPageTest, ChatBundleManifestTest the page loads with the contract it was built against; the bundle imports only the small access package
+    #   ChatHostConformanceTest              chat-core's host-port conformance checks pass on the Eclipse adapter
+    #   ChatReplayTest                       the recorded sessions give the view the streams chat-core records
+    #   ChatSetupTest, ChatQuestionsTest, WorkbenchDialogsTest   the preference page, the questions and the notices, pressed in real dialogs
+    #   ChatCommandsTest                     every chat command is an Eclipse command, and a command gives the page's own stream
+    #   ChatThemeTest, ChatThemePageTest     the theme map is pinned input by input, and an open chat follows a change of theme
+    #   ChatBusyTest                         a second prompt waits behind a long tool call while the interface and the focus stay as they were
+    p21_missing=""
+    for p21_class in AgentRelayTest McpOfferTest ChatPageTest ChatBundleManifestTest ChatHostConformanceTest ChatReplayTest ChatSetupTest \
+                     ChatQuestionsTest WorkbenchDialogsTest ChatCommandsTest ChatThemeTest ChatThemePageTest ChatBusyTest; do
+        p21_line="$(grep -h "Tests run:.*in org.jawata.eclipse.tests.$p21_class\$" "$tests_out" | head -1)"
+        case "$p21_line" in
+            "Tests run: "[0-9]*", Failures: 0, Errors: 0"*) ;;
+            *) p21_missing="$p21_missing $p21_class" ;;
+        esac
+    done
+    if [ -z "$p21_missing" ] && node --version > /dev/null 2>&1; then
+        ok "P21 $pkg: the chat bundle and its 13 test classes are in the build and passed in this download: the agent relay, the engine's tools offered to the agent, the page and its contract, the host-port conformance, the replayed sessions, the preference page and dialogs, the Eclipse commands, the theme map and a theme change, and a long tool call that leaves the interface and the focus alone"
+    else
+        fail "P21 $pkg: the chat tests did not all pass in this download (not passed or not run:${p21_missing:- none}; node: $(node --version 2>&1 | head -1))"
+    fi
     # D6's route subclasses WikiText's editor and registers nothing for .md: Eclipse's log in that test run carries no rejected
     # registration and no exception thrown from jawata's code (a WikiText release changing the editor class shows up here).
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"

@@ -4,9 +4,10 @@
 // flow and controller, so a command gives exactly the stream the page's own intent gives.
 /**
  * @param {{ flow: any, controller: any }} chat the chat built by createChat
+ * @param {(error: unknown) => void} [fail] told when a prompt the person sent fails, after its command has returned
  * @returns {Record<string, (args: Record<string, string>) => Promise<void> | void>}
  */
-export function chatCommands(chat) {
+export function chatCommands(chat, fail = () => {}) {
   const { flow, controller } = chat;
   return {
     connectAgent: () => flow.connect(),
@@ -17,9 +18,12 @@ export function chatCommands(chat) {
     openSession: async (args) => {
       if (args.sessionId) { await flow.open(args.sessionId); } else { await controller.showHistory(); }
     },
-    /** Without a text the command only shows the chat, which Java has done by then. */
-    sendPrompt: async (args) => {
-      if (args.text) { await controller.sendPrompt(args.text); }
+    /**
+     * Without a text the command only shows the chat, which Java has done by then. The command returns once the prompt is sent: a turn
+     * can run for minutes, and the commands after it (a second prompt, which the chat queues, or a cancel) must not wait behind it.
+     */
+    sendPrompt: (args) => {
+      if (args.text) { Promise.resolve().then(() => controller.sendPrompt(args.text)).catch(fail); }
     },
     cancelTurn: () => controller.handle({ type: 'cancelTurn' }),
     setMode: (args) => controller.handle({ type: 'setMode', modeId: args.modeId }),

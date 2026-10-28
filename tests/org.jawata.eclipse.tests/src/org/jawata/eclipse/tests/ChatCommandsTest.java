@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
 import org.eclipse.core.commands.Command;
 import org.eclipse.core.commands.IParameter;
@@ -116,7 +115,7 @@ public class ChatCommandsTest {
         Path file = Files.createTempFile("jawata-attach-", ".txt");
         AtomicReference<IWorkbenchPage> shown = new AtomicReference<>();
         try {
-            ChatView view = onThread(() -> {
+            ChatView view = UiThread.call(() -> {
                 IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
                 shown.set(page);
                 try {
@@ -126,17 +125,17 @@ public class ChatCommandsTest {
                 }
             });
             assertNotNull(view.host(), "the view has its host");
-            Browser browser = onThread(() -> (Browser) view.page().getChildren()[0]);
-            Await.found("the chat in the view's page", () -> Optional.ofNullable(onThread(() ->
+            Browser browser = UiThread.call(() -> (Browser) view.page().getChildren()[0]);
+            Await.found("the chat in the view's page", () -> Optional.ofNullable(UiThread.call(() ->
                 Boolean.TRUE.equals(browser.evaluate("return typeof window.jawataChatPage === 'object';")) ? Boolean.TRUE : null)));
-            onThread(() -> browser.evaluate("window.__seen = []; window.jawataChatPage.link.page.onMessage((m) => window.__seen.push(m.type)); return true;"));
+            UiThread.call(() -> browser.evaluate("window.__seen = []; window.jawataChatPage.link.page.onMessage((m) => window.__seen.push(m.type)); return true;"));
 
             ICommandService commands = PlatformUI.getWorkbench().getService(ICommandService.class);
             IHandlerService handlers = PlatformUI.getWorkbench().getService(IHandlerService.class);
             Command attach = commands.getCommand(ChatCommandHandler.commandId("attachFile"));
             ParameterizedCommand parameterized = ParameterizedCommand.generateCommand(attach,
                 Map.of(ChatCommandHandler.parameterId("attachFile", "path"), file.toString()));
-            onThread(() -> {
+            UiThread.call(() -> {
                 try {
                     return handlers.executeCommand(parameterized, null);
                 } catch (Exception failed) {
@@ -145,7 +144,7 @@ public class ChatCommandsTest {
             });
 
             Await.found("the page's file-attached message", () -> {
-                String seen = String.valueOf(onThread(() -> browser.evaluate("return JSON.stringify(window.__seen);")));
+                String seen = String.valueOf(UiThread.call(() -> browser.evaluate("return JSON.stringify(window.__seen);")));
                 return seen.contains("file-attached") ? Optional.of(seen) : Optional.empty();
             });
         } finally {
@@ -155,21 +154,5 @@ public class ChatCommandsTest {
                 Display.getDefault().syncExec(() -> page.hideView(page.findViewReference(ChatView.ID)));
             }
         }
-    }
-
-    private static <T> T onThread(Supplier<T> work) {
-        AtomicReference<T> value = new AtomicReference<>();
-        AtomicReference<RuntimeException> failure = new AtomicReference<>();
-        Display.getDefault().syncExec(() -> {
-            try {
-                value.set(work.get());
-            } catch (RuntimeException failed) {
-                failure.set(failed);
-            }
-        });
-        if (failure.get() != null) {
-            throw failure.get();
-        }
-        return value.get();
     }
 }

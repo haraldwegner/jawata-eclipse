@@ -68,6 +68,52 @@ public final class ChatPage extends Composite {
             }
         });
         browser.setUrl(url);
+        watchTheme();
+    }
+
+    /**
+     * The stylesheet of the Eclipse theme as it is now (step 21.10): it sets the view's theme inputs from the surface this page sits on.
+     *
+     * @return the stylesheet, as text
+     */
+    public String themeCss() {
+        return WidgetTheme.css(this);
+    }
+
+    /** Sends the page the theme as it is now, so an open chat is restyled at once. */
+    public void refreshTheme() {
+        if (isDisposed() || !loaded) {
+            // a page not yet loaded asks for the theme itself when it starts
+            return;
+        }
+        java.util.Map<String, String> event = new java.util.LinkedHashMap<>();
+        event.put("kind", "theme");
+        event.put("css", themeCss());
+        try {
+            deliver(new ObjectMapper().writeValueAsString(event));
+        } catch (IOException unwritable) {
+            // a map of two strings is always written
+            throw new IllegalStateException(unwritable);
+        }
+    }
+
+    /** The person changes the workbench theme or the system's settings: the page follows, and stops following when it goes away. */
+    private void watchTheme() {
+        org.eclipse.jface.util.IPropertyChangeListener changed = event -> refreshTheme();
+        org.eclipse.swt.widgets.Listener settings = event -> refreshTheme();
+        Display display = getDisplay();
+        display.addListener(SWT.Settings, settings);
+        org.eclipse.ui.themes.IThemeManager manager = org.eclipse.ui.PlatformUI.isWorkbenchRunning()
+            ? org.eclipse.ui.PlatformUI.getWorkbench().getThemeManager() : null;
+        if (manager != null) {
+            manager.addPropertyChangeListener(changed);
+        }
+        addDisposeListener(event -> {
+            display.removeListener(SWT.Settings, settings);
+            if (manager != null) {
+                manager.removePropertyChangeListener(changed);
+            }
+        });
     }
 
     /**

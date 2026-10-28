@@ -67,6 +67,7 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
             JsonNode op = json.readTree(call);
             return switch (op.path("op").asText()) {
                 case "config" -> config();
+                case "theme" -> json.writeValueAsString(Map.of("css", page.themeCss()));
                 case "started" -> {
                     int spoken = op.path("contract").asInt(-1);
                     log.accept("The chat page started on view contract " + spoken + ".");
