@@ -94,6 +94,19 @@ public class ImportCodeWorkspaceTest {
     }
 
     @Test
+    public void aWorkspaceFileWrittenTheWayVsCodeWritesItIsRead() throws Exception {
+        Path dir = Files.createTempDirectory("jawata-vsc-jsonc-");
+        try {
+            Path file = dir.resolve("w.code-workspace");
+            Files.writeString(file, "{\n  // the folders of this workspace\n  \"folders\": [\n    { \"path\": \"a\" }, /* second */ { \"path\": \"b\", },\n  ],\n  \"settings\": {}\n}\n");
+            assertEquals(List.of(dir.resolve("a"), dir.resolve("b")), CodeWorkspace.folders(file));
+        } finally {
+            Files.deleteIfExists(dir.resolve("w.code-workspace"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     public void thePathTakenIsThePublicWizardRegistryAndTheWizardIsGivenItsFolder() throws Exception {
         Path workspace = fixture();
         File app = CodeWorkspace.folders(workspace).get(0).toFile();

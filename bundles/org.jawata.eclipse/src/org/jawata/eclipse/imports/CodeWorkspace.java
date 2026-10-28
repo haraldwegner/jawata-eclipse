@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -28,7 +29,9 @@ public final class CodeWorkspace {
      */
     public static List<Path> folders(Path file) throws IOException {
         Path base = file.toAbsolutePath().getParent();
-        JsonNode folders = new ObjectMapper().readTree(Files.readString(file)).path("folders");
+        // VS Code writes these files as JSON with comments and trailing commas, so both are accepted
+        ObjectMapper reader = new ObjectMapper().configure(JsonParser.Feature.ALLOW_COMMENTS, true).configure(JsonParser.Feature.ALLOW_TRAILING_COMMA, true);
+        JsonNode folders = reader.readTree(Files.readString(file)).path("folders");
         List<Path> found = new ArrayList<>();
         for (JsonNode folder : folders) {
             JsonNode path = folder.path("path");
