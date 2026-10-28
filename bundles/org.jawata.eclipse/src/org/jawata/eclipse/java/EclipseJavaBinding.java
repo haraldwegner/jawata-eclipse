@@ -34,9 +34,16 @@ public final class EclipseJavaBinding implements JavaBinding {
         return EclipseJavaBinding::runtimeOf;
     }
 
+    /**
+     * Whether Eclipse has done the JDT UI setup the engine's refactorings read from: in the IDE the JDT UI plug-in sets the
+     * manipulation plug-in's preference node when it starts. Where it has not started (a workbench without it), nothing has, and
+     * the engine must do the setup itself or its first refactoring that reads a preference is refused with an
+     * {@code IllegalArgumentException} (measured: organize_imports in a bare workbench). So the answer is read from that state each
+     * time it is asked, never promised.
+     */
     @Override
     public boolean providesJdtUiSetup() {
-        return true;
+        return org.eclipse.jdt.core.manipulation.JavaManipulation.getPreferenceNodeId() != null;
     }
 
     /** The home of the JRE the project is set to run on, else the one Eclipse itself runs on. */

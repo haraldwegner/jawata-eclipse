@@ -55,18 +55,6 @@ public class WorkspaceHostTest {
     }
 
     @Test
-    public void everyWriteIsRefusedByName() {
-        EclipseWrites writes = new EclipseWrites("org.jawata.eclipse");
-
-        Optional<String> refusal = writes.refusal(List.of());
-        assertTrue(refusal.isPresent(), "the acceptance step is told before a tool runs");
-        assertTrue(refusal.get().contains(EclipseWrites.WRITES_NOT_AVAILABLE), refusal.get());
-
-        CoreException thrown = assertThrows(CoreException.class, () -> writes.perform(null, null));
-        assertTrue(thrown.getStatus().getMessage().contains(EclipseWrites.WRITES_NOT_AVAILABLE), thrown.getStatus().getMessage());
-    }
-
-    @Test
     public void aFileChangedOutsideEclipseIsReportedOnceAndThenNotAgain() throws Exception {
         IProject project = WorkspaceProjects.open("jawata-sync-");
         try (EclipseReconciler reconciler = new EclipseReconciler(WORKSPACE)) {

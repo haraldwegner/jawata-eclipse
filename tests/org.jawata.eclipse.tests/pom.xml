@@ -43,6 +43,9 @@
           <systemProperties>
             <jawata.engine.notes.dir>${project.build.directory}/engine-notes</jawata.engine.notes.dir>
             <jawata.ux.dir>${project.build.directory}/ux</jawata.ux.dir>
+            <!-- the engine the workbench starts must not read or write the machine's real knowledge store while tests run: its
+                 precedent check refused a rename of a fixture symbol because of what the real store holds about that name -->
+            <jawata.experience.store>memory</jawata.experience.store>
           </systemProperties>
         </configuration>
       </plugin>

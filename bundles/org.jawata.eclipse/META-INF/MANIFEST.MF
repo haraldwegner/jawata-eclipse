@@ -18,8 +18,10 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.mylyn.wikitext.markdown,
  org.eclipse.mylyn.wikitext.ui,
  org.eclipse.jdt.core,
- org.eclipse.jdt.launching
-Import-Package: org.commonmark.ext.gfm.tables;version="[0.30.0,1.0.0)",
+ org.eclipse.jdt.launching,
+ org.eclipse.core.filebuffers
+Import-Package: org.eclipse.jdt.core.manipulation,
+ org.commonmark.ext.gfm.tables;version="[0.30.0,1.0.0)",
  org.commonmark.node;version="[0.30.0,1.0.0)",
  org.commonmark.parser;version="[0.30.0,1.0.0)",
  org.eclipse.ltk.core.refactoring,

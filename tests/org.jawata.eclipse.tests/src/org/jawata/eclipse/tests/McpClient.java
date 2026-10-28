@@ -76,7 +76,8 @@ final class McpClient {
 
     /** Whether the tool answered with its error flag set. */
     static boolean failed(JsonNode answer) {
-        return answer.path("result").path("isError").asBoolean(false) || answer.has("error");
+        // a tool that cannot do what it was asked answers success false inside its text, with the protocol call itself fine
+        return answer.path("result").path("isError").asBoolean(false) || answer.has("error") || text(answer).contains("\"success\":false");
     }
 
     // The endpoint answers JSON, or one event-stream frame carrying the JSON; both are one object.

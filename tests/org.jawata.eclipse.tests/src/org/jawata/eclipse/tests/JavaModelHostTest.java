@@ -134,7 +134,8 @@ public class JavaModelHostTest {
             EclipseJavaBinding binding = new EclipseJavaBinding(source);
 
             assertSame(source, binding.model());
-            assertTrue(binding.providesJdtUiSetup(), "Eclipse has done the JDT UI setup, so the engine does none");
+            assertEquals(org.eclipse.jdt.core.manipulation.JavaManipulation.getPreferenceNodeId() != null, binding.providesJdtUiSetup(),
+                "the binding says Eclipse did the JDT UI setup exactly when it did, so the engine does it itself when nobody has");
             IJavaProject project = JavaCore.create(java);
             Path home = binding.runtimes().jreFor(project);
             assertTrue(Files.isDirectory(home), "the runtime named is a real directory: " + home);
