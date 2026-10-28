@@ -68,7 +68,15 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
             return switch (op.path("op").asText()) {
                 case "config" -> config();
                 case "started" -> {
-                    log.accept("The chat page started on view contract " + op.path("contract").asInt(-1) + ".");
+                    int spoken = op.path("contract").asInt(-1);
+                    log.accept("The chat page started on view contract " + spoken + ".");
+                    Optional<Integer> built = ChatPage.builtContract();
+                    if (built.isPresent() && built.get() != spoken) {
+                        String mismatch = "The chat page speaks view contract " + spoken + ", but this plug-in was built against " + built.get()
+                            + ". The chat may not work as it should: reinstall the plug-in.";
+                        log.accept(mismatch);
+                        dialogs.error(mismatch);
+                    }
                     yield null;
                 }
                 case "spawn" -> {
@@ -157,6 +165,20 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
         Map<String, Object> config = configMap();
         config.put("clientInfo", Map.of("name", "eclipse-jawata-chat", "version", settings.clientVersion()));
         return json.writeValueAsString(config);
+    }
+
+    /**
+     * Runs a chat command in the page, which gives the stream the page's own intent for it gives (step 21.7).
+     *
+     * @param name the command, by the name the page's table knows it as
+     * @param args its arguments, by name
+     */
+    public void command(String name, Map<String, String> args) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("kind", "command");
+        event.put("name", name);
+        event.put("args", args);
+        deliver(event);
     }
 
     /** The person changed the setup: an open page follows it, so its next question or agent start uses the new values. */

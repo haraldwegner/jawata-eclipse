@@ -10,8 +10,10 @@
 // agent the Java side configured (the replay agent), sends one prompt, answers proposals as the recording's person did, and sends
 // chat-core's normalised form of everything the core told the view to Java as {op:'played', body}. The test compares it with chat-core's golden.
 import { createChat } from '@jawata/chat-core';
+import { VIEW_CONTRACT_VERSION } from '@jawata/chat-core/view';
 import { RecordingPort, agentHostFailures, answerProposals, goldenBody, notifierFailures, syncReadFailures } from '@jawata/chat-core/test-support';
 import { createEclipseHost } from './host-adapter.js';
+import { chatCommands, commandQueue } from './commands.js';
 
 const bridge = {
   call(op) {
@@ -21,11 +23,17 @@ const bridge = {
 };
 
 let host;
-window.jawataHostDeliver = (text) => { host?.receive(JSON.parse(text)); };
+/** The commands of the chat a test is playing, once there is one: Java's `command` events run them, as entry.js does. */
+let commandTable;
+const queue = commandQueue(() => commandTable, bridge);
+window.jawataHostDeliver = (text) => {
+  const message = JSON.parse(text);
+  if (message.kind === 'command' && commandTable) { queue(message); } else { host?.receive(message); }
+};
 
 function begin() {
   host = createEclipseHost(bridge, bridge.call({ op: 'config' }));
-  bridge.call({ op: 'started', contract: 0 });
+  bridge.call({ op: 'started', contract: VIEW_CONTRACT_VERSION });
 }
 
 /**
@@ -57,6 +65,32 @@ window.playSession = async (spec) => {
   } finally {
     chat.dispose();
   }
+};
+
+/**
+ * Step 21.7: a chat that is driven from Java by commands (connectAgent, then sendPrompt with its text), as the Eclipse commands drive the
+ * real one; the view stream is sent to Java as above once the turn has ended.
+ */
+window.playByCommands = async () => {
+  const chat = createChat(host.ports);
+  const port = new RecordingPort();
+  chat.controller.attach(port);
+  commandTable = chatCommands(chat);
+  try {
+    for (let i = 0; i < 400 && !port.toView.some((message) => message.type === 'promptEnd'); i++) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    bridge.call({ op: 'played', body: goldenBody(port.toView) });
+  } finally {
+    commandTable = undefined;
+    chat.dispose();
+  }
+};
+
+/** Step 21.7: the names of the commands the page runs, sent to Java as {op:'asked', value} (comma separated). */
+window.commandNames = () => {
+  bridge.call({ op: 'asked', value: Object.keys(chatCommands({ flow: {}, controller: {} })).join(',') });
 };
 
 /**

@@ -52,6 +52,15 @@ public final class ChatView extends ViewPart {
         return page;
     }
 
+    /**
+     * The host serving this view's page, through which an Eclipse command sends the chat a command.
+     *
+     * @return the host, or null before the view's controls exist
+     */
+    public ChatHost host() {
+        return host;
+    }
+
     private static void log(String message) {
         Bundle bundle = FrameworkUtil.getBundle(ChatView.class);
         Platform.getLog(bundle).log(new Status(IStatus.INFO, bundle.getSymbolicName(), message));

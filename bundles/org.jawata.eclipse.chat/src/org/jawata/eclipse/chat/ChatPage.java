@@ -1,7 +1,9 @@
 package org.jawata.eclipse.chat;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
+import java.util.Optional;
 import java.util.function.Function;
 
 import org.eclipse.core.runtime.FileLocator;
@@ -15,6 +17,9 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * The chat's page inside Eclipse (plan Stage 21): a page ({@code page/index.html}, built by {@code scripts/build-chat-page.sh}) shown
@@ -124,6 +129,24 @@ public final class ChatPage extends Composite {
             }
         }
         return literal.append('"').toString();
+    }
+
+    /**
+     * The view contract number the page this bundle ships was built against.
+     *
+     * @return the number the build recorded in page/view-contract.json, or empty when the bundle holds no such record
+     */
+    public static Optional<Integer> builtContract() {
+        URL record = FrameworkUtil.getBundle(ChatPage.class).getEntry("page/view-contract.json");
+        if (record == null) {
+            return Optional.empty();
+        }
+        try (InputStream in = record.openStream()) {
+            JsonNode contract = new ObjectMapper().readTree(in).path("contract");
+            return contract.isInt() ? Optional.of(contract.asInt()) : Optional.empty();
+        } catch (IOException unreadable) {
+            return Optional.empty();
+        }
     }
 
     private static String pageUrl() {

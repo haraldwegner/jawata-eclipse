@@ -35,12 +35,6 @@ public class ChatPageTest {
     private final ObjectMapper json = new ObjectMapper();
     private final List<String> calls = new CopyOnWriteArrayList<>();
 
-    private static int contractTheBuildRecorded() throws Exception {
-        try (InputStream in = FrameworkUtil.getBundle(ChatPage.class).getEntry("page/view-contract.json").openStream()) {
-            return new ObjectMapper().readTree(in).path("contract").asInt(-1);
-        }
-    }
-
     /** The first call the page made with this op, and where in the order it came. */
     private int positionOf(String op) {
         for (int i = 0; i < calls.size(); i++) {
@@ -79,8 +73,22 @@ public class ChatPageTest {
     }
 
     @Test
+    public void aPageThatSpeaksAnotherContractThanTheBuildRecordedIsReportedToThePerson() throws Exception {
+        int built = ChatPage.builtContract().orElseThrow();
+        RecordingDialogs dialogs = new RecordingDialogs();
+        try (HostTestPage page = new HostTestPage(FixedChatSettings.withoutAgent(), dialogs)) {
+            assertEquals(List.of(), dialogs.asked, "a page of the contract it was built against is not reported");
+            page.run("window.jawataHostCall(JSON.stringify({op: 'started', contract: " + (built + 1) + "}));");
+            Await.found("the report", () -> dialogs.asked.isEmpty() ? Optional.empty() : Optional.of(dialogs.asked.get(0)));
+        }
+        assertEquals(1, dialogs.asked.size(), "one report: " + dialogs.asked);
+        assertTrue(dialogs.asked.get(0).startsWith("error: The chat page speaks view contract " + (built + 1) + ", but this plug-in was built against " + built),
+            dialogs.asked.get(0));
+    }
+
+    @Test
     public void thePageAsksForItsConfigurationMountsTheViewAndSaysItStartedWithTheContractItWasBuiltAgainst() throws Exception {
-        int recorded = contractTheBuildRecorded();
+        int recorded = ChatPage.builtContract().orElse(-1);
         assertTrue(recorded > 0, "the build recorded the contract number the page speaks: " + recorded);
         AtomicReference<Shell> shell = new AtomicReference<>();
         AtomicReference<ChatPage> page = new AtomicReference<>();

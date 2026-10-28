@@ -17,4 +17,47 @@
             category="org.jawata.eclipse.preferences.jawata"
             class="org.jawata.eclipse.chat.ChatPreferencePage"/>
    </extension>
+   <!-- Plan Stage 21, step 21.7 (ledger 28i-C56-3): one command per thing the person starts on the chat, each with its arguments as parameters, so a key binding, a menu or a script can drive the chat. -->
+   <extension point="org.eclipse.ui.commands">
+      <category id="org.jawata.eclipse.chat.commands" name="jawata chat"/>
+      <command id="org.jawata.eclipse.chat.openChat" categoryId="org.jawata.eclipse.chat.commands" name="Open jawata chat" description="Shows the jawata chat view."/>
+      <command id="org.jawata.eclipse.chat.configureAgent" categoryId="org.jawata.eclipse.chat.commands" name="Configure jawata chat agent" description="Opens the preference page where the agent and its working folder are set."/>
+      <command id="org.jawata.eclipse.chat.connectAgent" categoryId="org.jawata.eclipse.chat.commands" name="Connect jawata chat agent" description="Starts the configured agent and opens a conversation with it."/>
+      <command id="org.jawata.eclipse.chat.newConversation" categoryId="org.jawata.eclipse.chat.commands" name="New jawata chat conversation" description="Starts a fresh conversation with the connected agent."/>
+      <command id="org.jawata.eclipse.chat.disconnectAgent" categoryId="org.jawata.eclipse.chat.commands" name="Disconnect jawata chat agent" description="Ends the agent the chat is connected to."/>
+      <command id="org.jawata.eclipse.chat.restartAgent" categoryId="org.jawata.eclipse.chat.commands" name="Restart jawata chat agent" description="Ends the agent and starts it again."/>
+      <command id="org.jawata.eclipse.chat.openSession" categoryId="org.jawata.eclipse.chat.commands" name="Open jawata chat session" description="Opens the agent's session with the given id; without an id the sessions the agent has are listed.">
+         <commandParameter id="org.jawata.eclipse.chat.openSession.sessionId" name="Session id" optional="true"/>
+      </command>
+      <command id="org.jawata.eclipse.chat.sendPrompt" categoryId="org.jawata.eclipse.chat.commands" name="Send jawata chat prompt" description="Sends the given text to the agent; without a text it only shows the chat.">
+         <commandParameter id="org.jawata.eclipse.chat.sendPrompt.text" name="Text" optional="true"/>
+      </command>
+      <command id="org.jawata.eclipse.chat.cancelTurn" categoryId="org.jawata.eclipse.chat.commands" name="Cancel jawata chat turn" description="Stops what the agent is doing for the current prompt."/>
+      <command id="org.jawata.eclipse.chat.setMode" categoryId="org.jawata.eclipse.chat.commands" name="Set jawata chat mode" description="Sets the mode the agent works in; asks for it when none is given.">
+         <commandParameter id="org.jawata.eclipse.chat.setMode.modeId" name="Mode id" optional="true"/>
+      </command>
+      <command id="org.jawata.eclipse.chat.setModel" categoryId="org.jawata.eclipse.chat.commands" name="Set jawata chat model" description="Sets the model the agent uses; asks for it when none is given.">
+         <commandParameter id="org.jawata.eclipse.chat.setModel.modelId" name="Model id" optional="true"/>
+      </command>
+      <command id="org.jawata.eclipse.chat.attachFile" categoryId="org.jawata.eclipse.chat.commands" name="Attach file to jawata chat" description="Attaches the file at the given path to the next prompt; asks for a file when none is given.">
+         <commandParameter id="org.jawata.eclipse.chat.attachFile.path" name="Path" optional="true"/>
+      </command>
+   </extension>
+   <extension point="org.eclipse.ui.handlers">
+      <handler commandId="org.jawata.eclipse.chat.openChat" class="org.jawata.eclipse.chat.ChatCommandHandler:openChat"/>
+      <handler commandId="org.jawata.eclipse.chat.configureAgent" class="org.jawata.eclipse.chat.ChatCommandHandler:configureAgent"/>
+      <handler commandId="org.jawata.eclipse.chat.connectAgent" class="org.jawata.eclipse.chat.ChatCommandHandler:connectAgent"/>
+      <handler commandId="org.jawata.eclipse.chat.newConversation" class="org.jawata.eclipse.chat.ChatCommandHandler:newConversation"/>
+      <handler commandId="org.jawata.eclipse.chat.disconnectAgent" class="org.jawata.eclipse.chat.ChatCommandHandler:disconnectAgent"/>
+      <handler commandId="org.jawata.eclipse.chat.restartAgent" class="org.jawata.eclipse.chat.ChatCommandHandler:restartAgent"/>
+      <handler commandId="org.jawata.eclipse.chat.openSession" class="org.jawata.eclipse.chat.ChatCommandHandler:openSession"/>
+      <handler commandId="org.jawata.eclipse.chat.sendPrompt" class="org.jawata.eclipse.chat.ChatCommandHandler:sendPrompt"/>
+      <handler commandId="org.jawata.eclipse.chat.cancelTurn" class="org.jawata.eclipse.chat.ChatCommandHandler:cancelTurn"/>
+      <handler commandId="org.jawata.eclipse.chat.setMode" class="org.jawata.eclipse.chat.ChatCommandHandler:setMode"/>
+      <handler commandId="org.jawata.eclipse.chat.setModel" class="org.jawata.eclipse.chat.ChatCommandHandler:setModel"/>
+      <handler commandId="org.jawata.eclipse.chat.attachFile" class="org.jawata.eclipse.chat.ChatCommandHandler:attachFile"/>
+   </extension>
+   <extension point="org.eclipse.ui.bindings">
+      <key commandId="org.jawata.eclipse.chat.openChat" schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" sequence="M1+M3+J"/>
+   </extension>
 </plugin>

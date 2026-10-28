@@ -14,6 +14,7 @@ import { mountChatView } from '@jawata/chat-view';
 import { VIEW_CONTRACT_VERSION } from '@jawata/chat-core/view';
 import { createChat, createInProcessLink } from '@jawata/chat-core';
 import { createEclipseHost } from './host-adapter.js';
+import { chatCommands, commandQueue } from './commands.js';
 
 const root = document.getElementById('root');
 if (!root) { throw new Error('the page has no root element'); }
@@ -45,6 +46,10 @@ function start() {
   const chat = createChat(host.ports);
   const link = createInProcessLink();
   chat.controller.attach(link.port);
+  const commands = chatCommands(chat);
+  const queue = commandQueue(() => commands, bridge);
+  const events = host.receive;
+  receive = (message) => { if (message.kind === 'command') { queue(message); } else { events(message); } };
   mountChatView(root, link.page);
   window.jawataChatPage = { contract: VIEW_CONTRACT_VERSION, chat, link };
   window.addEventListener('unload', () => { chat.dispose(); });

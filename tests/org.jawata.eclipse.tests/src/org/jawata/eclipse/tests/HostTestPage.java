@@ -93,6 +93,16 @@ final class HostTestPage implements AutoCloseable {
         Display.getDefault().syncExec(() -> ((Browser) page.getChildren()[0]).execute(script));
     }
 
+    /**
+     * Sends the page a chat command, as the Eclipse commands of the chat do.
+     *
+     * @param name the command
+     * @param args its arguments
+     */
+    void command(String name, java.util.Map<String, String> args) {
+        Display.getDefault().syncExec(() -> host.command(name, args));
+    }
+
     /** The first call the page made with this op, if it has made one. */
     Optional<JsonNode> callWith(String op) {
         for (String call : calls) {
