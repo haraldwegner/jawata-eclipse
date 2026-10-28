@@ -76,33 +76,10 @@ public class AgentRelayTest {
         }
     }
 
-    /** The folder of the sibling checkout of jawata-chat, the one scripts/build-chat-page.sh reads. */
-    private static Path chatRepository() {
-        String named = System.getenv("JAWATA_CHAT");
-        if (named != null && !named.isBlank()) {
-            return Path.of(named);
-        }
-        for (Path folder = Path.of("").toAbsolutePath(); folder != null; folder = folder.getParent()) {
-            Path sibling = folder.resolveSibling("jawata-chat");
-            if (Files.isDirectory(sibling)) {
-                return sibling;
-            }
-        }
-        throw new AssertionError("jawata-chat is not next to jawata-eclipse and JAWATA_CHAT is not set");
-    }
-
-    private static Path recordedSession() {
-        return chatRepository().resolve("packages/acp-contract/sessions/R1.jsonl");
-    }
-
-    private static List<String> replayCommand() {
-        return List.of("node", chatRepository().resolve("packages/acp-contract/dist/bin/replay.js").toString(), recordedSession().toString());
-    }
-
     /** The messages the recorded client sent, in order: what the page would send. */
     private List<String> recordedRequests() throws IOException {
         List<String> requests = new ArrayList<>();
-        for (String line : Files.readAllLines(recordedSession(), StandardCharsets.UTF_8)) {
+        for (String line : Files.readAllLines(ChatCheckout.session("R1"), StandardCharsets.UTF_8)) {
             JsonNode recorded = json.readTree(line);
             if ("send".equals(recorded.path("dir").asText())) {
                 requests.add(json.writeValueAsString(recorded.path("msg")));
@@ -130,7 +107,7 @@ public class AgentRelayTest {
 
     @Test
     public void theRecordedAgentAnswersTheRecordedRequestsThroughTheRelay() throws Exception {
-        String agent = relay.start("agent_1", replayCommand(), Map.of(), null);
+        String agent = relay.start("agent_1", ChatCheckout.replayCommand("R1"), Map.of(), null);
         List<String> requests = recordedRequests();
 
         assertTrue(relay.send(agent, requests.get(0)), "the first request, initialize, is written");
