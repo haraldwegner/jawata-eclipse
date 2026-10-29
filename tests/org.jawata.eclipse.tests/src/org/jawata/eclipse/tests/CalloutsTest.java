@@ -65,7 +65,8 @@ public class CalloutsTest {
         run(CalloutCommandHandler.ACCEPT, null);
         text = text.replace("{++by hand++}", "by hand");
         assertEquals(text, documentText(), "accepting an addition puts its text in the file and the mark is gone");
-        assertEquals(4, callouts(WikiTextShowsSpecsTest.previewHtmlWhen(shown -> callouts(shown) == 4)), "and its callout is gone from the preview");
+        html = WikiTextShowsSpecsTest.previewHtmlWhen(shown -> callouts(shown) == 4);
+        assertEquals(4, callouts(html), "and its callout is gone from the preview; the preview showed: " + html);
 
         select("new name++}", 0, 0);
         run(CalloutCommandHandler.REJECT, null);

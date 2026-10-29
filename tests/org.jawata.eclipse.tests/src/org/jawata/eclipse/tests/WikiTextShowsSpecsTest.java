@@ -157,12 +157,61 @@ public class WikiTextShowsSpecsTest {
         do {
             Thread.sleep(200);
             Display.getDefault().syncExec(() -> {
-                Browser browser = browser(shell());
+                // Eclipse's own pages (Sponsor the Eclipse IDE, Install Java 27 Support) arrive from the network a few seconds after start
+                // and take the activation; the editor's preview then leaves the window until the editor is the active part again
+                var page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+                if (!(page.getActivePart() instanceof IEditorPart) && page.getEditorReferences().length > 0) {
+                    page.activate(page.getEditorReferences()[0].getEditor(true));
+                }
+                Browser browser = previewBrowser();
                 assertNotNull(browser, "the Preview tab holds a browser");
                 html.set(String.valueOf(browser.getText()));
             });
         } while (!ready.test(html.get()) && System.nanoTime() < deadline);
+        if (!ready.test(html.get())) {
+            Display.getDefault().syncExec(() -> System.err.println("JAWATA-PREVIEW-DIAG the preview was not what was wanted after ten seconds: " + windowState()));
+        }
         return html.get();
+    }
+
+    /** What is open when the preview did not come: the editors and which is active, every shell of the display, every browser with its address and size. */
+    private static String windowState() {
+        StringBuilder state = new StringBuilder();
+        var page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+        for (var reference : page.getEditorReferences()) {
+            state.append("\n  editor '").append(reference.getTitle()).append("' visible=").append(page.isPartVisible(reference.getPart(false)));
+        }
+        state.append("\n  active part: ").append(page.getActivePart() == null ? "none" : page.getActivePart().getTitle());
+        for (Shell each : Display.getDefault().getShells()) {
+            state.append("\n  shell '").append(each.getText()).append("' visible=").append(each.isVisible());
+            collectBrowsers(each, state);
+        }
+        return state.toString();
+    }
+
+    private static void collectBrowsers(Control control, StringBuilder into) {
+        if (control instanceof Browser browser) {
+            into.append("\n    browser url=").append(browser.getUrl()).append(" visible=").append(browser.isVisible()).append(" text length=")
+                .append(String.valueOf(browser.getText()).length());
+        }
+        if (control instanceof Composite composite) {
+            for (Control child : composite.getChildren()) { collectBrowsers(child, into); }
+        }
+    }
+
+    /**
+     * The browser of the Preview tab and no other: Eclipse's own pages (its "Install Java 27 Support" notification is one) can hold a browser
+     * earlier in the window than the preview does, and reading the first browser of the window showed that page, with no callouts, in 2 of 5 runs.
+     */
+    private static Browser previewBrowser() {
+        for (CTabFolder folder : folders(shell())) {
+            for (CTabItem item : folder.getItems()) {
+                if (item.getText().contains("Preview") && item.getControl() != null) {
+                    return browser(item.getControl());
+                }
+            }
+        }
+        return null;
     }
 
     private static Shell shell() {
