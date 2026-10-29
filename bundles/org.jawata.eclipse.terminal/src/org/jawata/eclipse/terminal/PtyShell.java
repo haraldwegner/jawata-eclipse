@@ -23,6 +23,7 @@ public final class PtyShell implements TerminalSession {
     private final PTY pty;
     private final Process process;
     private final CopyOnWriteArrayList<Consumer<byte[]>> listeners = new CopyOnWriteArrayList<>();
+    private final java.util.concurrent.atomic.AtomicBoolean pumping = new java.util.concurrent.atomic.AtomicBoolean();
     private volatile boolean closed;
 
     /**
@@ -38,13 +39,10 @@ public final class PtyShell implements TerminalSession {
         }
         pty = new PTY(PTY.Mode.TERMINAL);
         process = ProcessFactory.getFactory().exec(command, environment(), folder, pty);
-        Thread reader = new Thread(this::pump, "jawata terminal output");
-        reader.setDaemon(true);
-        reader.start();
     }
 
     /**
-     * The shell the person's system starts: their own login shell, else bash, else the Windows command shell.
+     * The shell the person's environment names ({@code $SHELL}), else the Windows command shell, else bash.
      *
      * @return a command for {@link #PtyShell(String[], File)}
      */
@@ -83,9 +81,15 @@ public final class PtyShell implements TerminalSession {
         out.flush();
     }
 
+    /** The shell's output is read from the first listener on, so nothing it prints before anyone listens is dropped. */
     @Override
     public void onOutput(Consumer<byte[]> listener) {
         listeners.add(listener);
+        if (pumping.compareAndSet(false, true)) {
+            Thread reader = new Thread(this::pump, "jawata terminal output");
+            reader.setDaemon(true);
+            reader.start();
+        }
     }
 
     @Override

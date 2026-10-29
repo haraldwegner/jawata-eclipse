@@ -51,8 +51,7 @@
     },
     /** Types text as if the person had: it goes out as input, like every key. */
     input: function (text) { term.input(text, true); },
-    focus: function () { term.focus(); },
-    size: function () { return { cols: term.cols, rows: term.rows }; }
+    focus: function () { term.focus(); }
   };
 
   // The host's function is put into the page by the browser after the page has started, so the page waits for it before it says it is ready.

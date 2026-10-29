@@ -18,8 +18,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * The browser of the jawata terminal and its bridge to a {@link TerminalSession}. The page sends three messages (input, resize, ready) and
- * is sent one (write); the page keeps nothing the host needs. The session is made when the page says it is ready, so the shell starts at
- * the size the person's window really has.
+ * is sent one (write); the page keeps nothing the host needs. The session is made when the page says it is ready and is told the page's
+ * size at once, so the shell has the person's real window size before it draws its first screen.
  */
 final class TerminalPage {
 
