@@ -35,10 +35,13 @@ fail() { echo "  FAIL  $*"; failed=$((failed + 1)); }
 
 [ -f "$site/content.jar" ] || { echo "no update site at $site — run: xvfb-run -a mvn -B verify"; exit 2; }
 # The run installs the jawata bundles from the built site and rebuilds only the test bundle, so a bundle changed since the site was built
-# would be tested in its OLD form and the run would still say passed (measured 2026-10-29, Stage 13c). Refuse instead. Not for a tampered
-# copy (JAWATA_SITE), which the red controls build on purpose.
+# would be tested in its OLD form and the run would still say passed (measured 2026-10-29, Stage 13c). Refuse instead. What this proves:
+# no file of the bundles, features, repository or releng modules (outside target/ and the generated chat page), no pom, engine.version
+# or chat.ref is NEWER than the site. What it cannot see: a deleted file, a file whose timestamp is older than the finished site although
+# it was saved during the build, and a tampered copy (JAWATA_SITE, which the red controls build on purpose, is not checked). Having no
+# site at all stops the run on the line above. A branch switch can make the check fire without a change: the cure is the rebuild.
 if [ -z "${JAWATA_SITE:-}" ]; then
-    older="$(find "$here/bundles" "$here/features" -type f \( -path '*/src/*' -o -path '*/page/*' -o -name plugin.xml -o -name MANIFEST.MF -o -name build.properties -o -name feature.xml \) \
+    older="$(find "$here/bundles" "$here/features" "$here/repository" "$here/releng" "$here/pom.xml" "$here/engine.version" "$here/chat.ref" -type f \
         -not -path '*/target/*' -not -path '*/org.jawata.eclipse.chat/page/*' -newer "$site/content.jar" 2>/dev/null | head -3)"
     [ -z "$older" ] || { echo "the update site is older than these sources, so the run would test the previous build:"; echo "$older"; echo "run: xvfb-run -a mvn -B verify"; exit 2; }
 fi
