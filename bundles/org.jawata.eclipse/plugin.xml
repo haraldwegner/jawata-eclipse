@@ -109,10 +109,11 @@
    <!-- Spec D13, plan Stage 22b: the commit message draft the agent writes, shown for the person to read and copy into EGit's commit box. Nothing here
         commits or pushes; a draft with AI attribution is not offered. EGit has no dependable way to be filled (measured, plan Stage 22b). -->
    <extension point="org.eclipse.ui.views">
-      <category id="org.jawata.eclipse.commit.category" name="jawata"/>
+      <!-- the one group the jawata views are listed in, in Window > Show View; the chat and the terminal point at it -->
+      <category id="org.jawata.eclipse.views" name="jawata"/>
       <view id="org.jawata.eclipse.commit.view"
             name="jawata commit draft"
-            category="org.jawata.eclipse.commit.category"
+            category="org.jawata.eclipse.views"
             class="org.jawata.eclipse.commit.CommitDraftView"
             allowMultiple="false">
          <description>The commit message the agent drafted, with a Copy button. Paste it into the Git Staging view and commit there.</description>

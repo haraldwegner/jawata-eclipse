@@ -437,6 +437,14 @@ for pkg in java rcp; do
         "Tests run: 6, Failures: 0, Errors: 0, Skipped: 0"*) ok "P22b $pkg: a draft the agent writes shows in the jawata commit draft view with HEAD unmoved, a draft with AI attribution is refused with its reason by the hook's own cases, the view says how to ask, and the plug-in's classes reference no commit or push (${commitdraft%%,*})" ;;
         *) fail "P22b $pkg: the commit draft tests did not pass in this download (${commitdraft:-they did not run})" ;;
     esac
+    # UX (found by the ux look at the commit draft view, plan Stage 22b): Window > Show View lists the chat, the terminal and the commit draft
+    # in ONE group named jawata, not in three groups of the same name (ViewCategoriesTest, 1 test; it was red with 3 groups before the views
+    # shared one category).
+    viewgroups="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.ViewCategoriesTest$' "$tests_out" | head -1)"
+    case "$viewgroups" in
+        "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*) ok "UX $pkg: Window > Show View lists the jawata chat, terminal and commit draft in one group named jawata (${viewgroups%%,*})" ;;
+        *) fail "UX $pkg: the jawata views are not in one Show View group (${viewgroups:-the test did not run})" ;;
+    esac
     # P23 (plan Stage 23, spec D10, his pick of 2026-10-28): in this download the chat is one view that opens where the person chose, in the
     # editor area in the middle or in a side panel, each loading the chat and taking a chat command; the first opening asks once and keeps
     # the answer; a closed chat opens again where it was chosen and an open one stays (ChatPlacementsTest, 10 tests). And the chat reopens
