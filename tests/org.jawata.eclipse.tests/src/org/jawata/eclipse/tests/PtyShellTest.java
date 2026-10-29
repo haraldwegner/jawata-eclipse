@@ -61,6 +61,28 @@ public class PtyShellTest {
         assertTrue(Await.until(() -> output().contains("30 100")), "the program sees 30 rows and 100 columns: " + output());
     }
 
+    /** The page registers its listener a moment after the shell starts; what the shell printed in between must still arrive. */
+    @Test
+    public void outputPrintedBeforeAnyoneListensIsKept() throws Exception {
+        PtyShell early = new PtyShell(new String[] { "/bin/sh", "-c", "echo printed-early; sleep 5" }, null);
+        try {
+            Thread.sleep(500);
+            StringBuilder got = new StringBuilder();
+            early.onOutput(chunk -> {
+                synchronized (got) {
+                    got.append(new String(chunk, StandardCharsets.UTF_8));
+                }
+            });
+            assertTrue(Await.until(() -> {
+                synchronized (got) {
+                    return got.toString().contains("printed-early");
+                }
+            }), "the line printed before the first listener arrived: " + got);
+        } finally {
+            early.close();
+        }
+    }
+
     @Test
     public void utf8GoesThroughBothWays() throws Exception {
         type("echo ö→│▄\n");

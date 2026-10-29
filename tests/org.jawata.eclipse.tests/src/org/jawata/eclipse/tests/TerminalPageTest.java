@@ -142,6 +142,8 @@ public class TerminalPageTest {
         // The terminal's area in the page is made narrower and lower and the page's own resize event is raised, which is what the browser
         // raises when a person drags the edge of the panel. It does not rely on Eclipse's layout: Eclipse's own pages (Sponsor the Eclipse
         // IDE, Install Java 27 Support) arrive from the network a few seconds after start and rearrange the window at random times.
+        // Not tested here: that the browser raises its resize event when its widget is resized (the browser's own behaviour); that is part
+        // of his look at C13c, dragging the edge of the panel, and of the OS sessions of Stage 24.
         final String area = "var e = document.getElementById('terminal');";
         final String resized = "window.dispatchEvent(new Event('resize')); return true;";
         UiThread.call(() -> view.browser().evaluate(area + "e.style.right = 'auto'; e.style.bottom = 'auto'; e.style.width = '300px'; e.style.height = '150px';" + resized));

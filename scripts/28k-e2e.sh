@@ -403,15 +403,16 @@ for pkg in java rcp; do
     # opens and its page holds an xterm.js terminal (TerminalViewTest, 1), keys pressed in the page (as key events, and as typed text) reach the
     # session behind it, what the session writes arrives in the page as text, box-drawing characters included, the window size reaches the
     # session at the start and again when the terminal's area is resized, and closing the view ends it (TerminalPageTest, 6), a shell on a
-    # pseudo-terminal answers typed commands, takes the size and passes UTF-8 (PtyShellTest, 3), and the person's real shell, in the real page,
-    # runs a typed command and its frame characters come out as bytes (TerminalRealShellTest, 1). That the frame is DRAWN is shown by the
+    # pseudo-terminal answers typed commands, takes the size, passes UTF-8 and keeps what it printed before anyone listened (PtyShellTest, 4), and the person's real shell, in the real page,
+    # runs a typed command and its frame characters come out as bytes (TerminalRealShellTest, 1). A skipped terminal test fails the promise (Skipped: 0),
+    # because the shell tests skip themselves on Windows and a skip must not read as a pass. That the frame is DRAWN is shown by the
     # pictures in docs/terminal-render/ and by his look, not by a test.
     termview="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.TerminalViewTest$' "$tests_out" | head -1)"
     termpage="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.TerminalPageTest$' "$tests_out" | head -1)"
     termpty="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.PtyShellTest$' "$tests_out" | head -1)"
     termreal="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.TerminalRealShellTest$' "$tests_out" | head -1)"
     case "$termview|$termpage|$termpty|$termreal" in
-        "Tests run: 1, Failures: 0, Errors: 0"*"|Tests run: 6, Failures: 0, Errors: 0"*"|Tests run: 3, Failures: 0, Errors: 0"*"|Tests run: 1, Failures: 0, Errors: 0"*) ok "P13c $pkg: the jawata terminal, an xterm.js page over the person's own shell on a pseudo-terminal: the page holds a terminal, pressed keys reach the shell, its output and box-drawing characters arrive in the page, the size (at the start and when the terminal's area is resized) and the close reach it, and a real shell answers a typed command in the real page (${termview%%,*}; ${termpage%%,*}; ${termpty%%,*}; ${termreal%%,*})" ;;
+        "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 6, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 4, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*) ok "P13c $pkg: the jawata terminal, an xterm.js page over the person's own shell on a pseudo-terminal: the page holds a terminal, pressed keys reach the shell, its output and box-drawing characters arrive in the page, the size (at the start and when the terminal's area is resized) and the close reach it, and a real shell answers a typed command in the real page (${termview%%,*}; ${termpage%%,*}; ${termpty%%,*}; ${termreal%%,*})" ;;
         *) fail "P13c $pkg: the jawata terminal tests did not pass in this download (${termview:-view test did not run}; ${termpage:-page test did not run}; ${termpty:-pty test did not run}; ${termreal:-real-shell test did not run})" ;;
     esac
     # P23 (plan Stage 23, spec D10, his pick of 2026-10-28): in this download the chat is one view that opens where the person chose, in the
