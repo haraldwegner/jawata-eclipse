@@ -19,11 +19,11 @@ public final class CriticMarkup {
     /** The three marks. */
     public enum Kind {
         /** {@code {>> … <<}}. */
-        COMMENT("{>>", "<<}", "(?s)\\{>>((?:(?!\\n[ \\t]*\\n).)*?)<<\\}"),
+        COMMENT("{>>", "<<}", "(?s)\\{>>((?:(?!\\n[ \\t\\r]*\\n).)*?)<<\\}"),
         /** {@code {++ … ++}}. */
-        ADDITION("{++", "++}", "(?s)\\{\\+\\+((?:(?!\\n[ \\t]*\\n).)*?)\\+\\+\\}"),
+        ADDITION("{++", "++}", "(?s)\\{\\+\\+((?:(?!\\n[ \\t\\r]*\\n).)*?)\\+\\+\\}"),
         /** {@code {-- … --}}. */
-        REMOVAL("{--", "--}", "(?s)\\{--((?:(?!\\n[ \\t]*\\n).)*?)--\\}");
+        REMOVAL("{--", "--}", "(?s)\\{--((?:(?!\\n[ \\t\\r]*\\n).)*?)--\\}");
 
         private final String open;
         private final String close;

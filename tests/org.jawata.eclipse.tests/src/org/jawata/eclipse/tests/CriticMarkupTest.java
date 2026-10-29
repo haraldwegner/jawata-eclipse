@@ -37,6 +37,14 @@ public class CriticMarkupTest {
         assertEquals("a {>>never closed", CriticMarkup.toHtml("a {>>never closed"));
     }
 
+    /** A stray opener ends at the blank line in a file with Unix line breaks and in one with Windows line breaks alike (ledger 28k-A13b-4). */
+    @Test
+    public void anUnclosedOpenerDoesNotRunAcrossAParagraphWhateverTheLineEndings() {
+        String unix = "start {>>never closed\n\nnext paragraph {>>real<<} end";
+        assertEquals(List.of("real"), CriticMarkup.marks(unix).stream().map(Mark::text).toList(), "with Unix line breaks");
+        assertEquals(List.of("real"), CriticMarkup.marks(unix.replace("\n", "\r\n")).stream().map(Mark::text).toList(), "with Windows line breaks");
+    }
+
     @Test
     public void marksBecomeInlineHtmlAndTheRestIsUnchanged() {
         String html = CriticMarkup.toHtml("keep {>>a < b<<} this {++add++}{--drop--} end");
