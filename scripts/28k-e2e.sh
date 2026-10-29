@@ -426,6 +426,17 @@ for pkg in java rcp; do
         "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 6, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 4, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*) ok "P13c $pkg: the jawata terminal, an xterm.js page over the person's own shell on a pseudo-terminal: the page holds a terminal, pressed keys reach the shell, its output and box-drawing characters arrive in the page, the size (at the start and when the terminal's area is resized) and the close reach it, and a real shell answers a typed command in the real page (${termview%%,*}; ${termpage%%,*}; ${termpty%%,*}; ${termreal%%,*})" ;;
         *) fail "P13c $pkg: the jawata terminal tests did not pass in this download (${termview:-view test did not run}; ${termpage:-page test did not run}; ${termpty:-pty test did not run}; ${termreal:-real-shell test did not run})" ;;
     esac
+    # P22b (plan Stage 22b, spec D13, the fallback route its first check chose: EGit's commit box has no dependable way to be filled): in this
+    # download a commit message draft the agent writes with its ordinary file tools into the repository's .git folder shows in the jawata commit
+    # draft view with a Copy button and HEAD does not move; a draft with AI attribution is refused with its reason by the cases the commit-msg
+    # hook also reads from one list; the view says how to ask when there is no draft; a scan of the plug-in's classes finds no commit or push
+    # operation and the scan goes red on a synthetic reference (CommitDraftTest, 6 tests, none skipped: the git commands skip on Windows). The
+    # live half, asking Claude in the Eclipse chat for the draft, is run with the live agent turn of 21.15.
+    commitdraft="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.CommitDraftTest$' "$tests_out" | head -1)"
+    case "$commitdraft" in
+        "Tests run: 6, Failures: 0, Errors: 0, Skipped: 0"*) ok "P22b $pkg: a draft the agent writes shows in the jawata commit draft view with HEAD unmoved, a draft with AI attribution is refused with its reason by the hook's own cases, the view says how to ask, and the plug-in's classes reference no commit or push (${commitdraft%%,*})" ;;
+        *) fail "P22b $pkg: the commit draft tests did not pass in this download (${commitdraft:-they did not run})" ;;
+    esac
     # P23 (plan Stage 23, spec D10, his pick of 2026-10-28): in this download the chat is one view that opens where the person chose, in the
     # editor area in the middle or in a side panel, each loading the chat and taking a chat command; the first opening asks once and keeps
     # the answer; a closed chat opens again where it was chosen and an open one stays (ChatPlacementsTest, 10 tests). And the chat reopens

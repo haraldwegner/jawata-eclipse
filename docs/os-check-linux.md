@@ -1,9 +1,9 @@
 # os-check on linux
 
-- started: 2026-10-29T02:53:56Z (UTC)
+- started: 2026-10-29T03:51:14Z (UTC)
 - machine: Linux 7.0.9-76070009-generic, x86_64; the run used Xvfb, a virtual screen; the desktop the person sits at: x11
-- plug-in commit: 3d5c240 (working tree has uncommitted changes)
-- exit code of scripts/28k-e2e.sh: 0; promises passed: 102; failed: 0
+- plug-in commit: 12c9ad2 (working tree has uncommitted changes)
+- exit code of scripts/28k-e2e.sh: 0; promises passed: 104; failed: 0
 
 ## What the run said
 
@@ -59,7 +59,7 @@
   ok    P13 java: the update site installs (director), org.jawata.eclipse.feature.feature.group is an installed root
   ok    P13 java: Eclipse starts in Xvfb, the workbench is ACTIVE; both org.jawata bundles, WikiText's Markdown editor and the Terminal's local shell are resolved
   ok    P15 java: in that started Eclipse the eight engine bundles and libraries (spi, core, mcp, catalogue, H2, Jackson x3) are resolved on its own JDT, LTK and JaCoCo
-  ok    D6/D7 java: the PDE tests ran inside this download (Tests run: 160, Failures: 0, Errors: 0, Skipped: 2): a .md opens in jawata's editor with source and a preview showing every table, the Terminal runs bash
+  ok    D6/D7 java: the PDE tests ran inside this download (Tests run: 168, Failures: 0, Errors: 0, Skipped: 2): a .md opens in jawata's editor with source and a preview showing every table, the Terminal runs bash
   ok    D2 java: the read-only run's Maven, Gradle and plug-in fixtures had their real natures in this download (natures present here: m2e=true, buildship=true, pde=false)
   ok    P17 java: the preference page shows every setting of the engine, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (Tests run: 4; the two proving tests are in the report and passed)
   ok    P18 java: a rename is one Undo step and one Undo restores it, a trial is not on the undo history, unsaved editor text is refused by name and untouched, write tools leave the configuration alone (Tests run: 6)
@@ -68,6 +68,7 @@
   ok    P22 java: the import command on the fixture workspace gives the projects an import by hand gives, through Eclipse's own Smart Import wizard, the person confirming each folder (Tests run: 6); path taken: the registry wizard, pre-filled by name
   ok    P13b java: the fixture's comment, suggested change, typed addition and typed removal show as five callouts in the preview; accepting, rejecting and resolving each change only their own mark through the real commands (Tests run: 1; unit: Tests run: 14)
   ok    P13c java: the jawata terminal, an xterm.js page over the person's own shell on a pseudo-terminal: the page holds a terminal, pressed keys reach the shell, its output and box-drawing characters arrive in the page, the size (at the start and when the terminal's area is resized) and the close reach it, and a real shell answers a typed command in the real page (Tests run: 1; Tests run: 6; Tests run: 4; Tests run: 1)
+  ok    P22b java: a draft the agent writes shows in the jawata commit draft view with HEAD unmoved, a draft with AI attribution is refused with its reason by the hook's own cases, the view says how to ask, and the plug-in's classes reference no commit or push (Tests run: 6)
   ok    P23 java: the chat view opens in the middle or in a side panel as chosen, loads and takes a command in each, the real first-run question has two buttons that each choose their place and asks once, a chat closed from the middle opens in a side panel when that is now chosen, a chat that carries the saved mark is not moved, an open chat stays, and the saved layout holds the view with its mark (Tests run: 10)
   ok    P23 java: the chat asks its page to reopen the last conversation when the person wants that, keeps the conversation a prompt, load or resume belongs to, and the preference page saves both choices (Tests run: 5)
   ok    D6 java: Eclipse's log in the test run has no rejected registration and no exception from jawata's code
@@ -81,12 +82,12 @@
   ok    P20 java: one Eclipse open: studio's reader shows 1 running Eclipse workspace, no switch, no note deleted
   ok    P20 java: after that Eclipse closed, studio still lists its workspace, not running (it remembered it)
   ok    P20 java: two Eclipse instances open and one closed: studio answers 2 running, 1 not running, no switch on any, the tray rows are the list's rows (3 rows)
-  ok    P24 java: the chat was opened in the middle, the layout Eclipse wrote on exit holds the view and its mark, and after a real restart the chat was on screen without anyone opening it (picture 4 of session 2, 8 s after the start)
+  ok    P24 java: the chat was opened in the middle, the layout Eclipse wrote on exit holds the view and its mark, and after a real restart the chat was on screen without anyone opening it (picture 5 of session 2, 10 s after the start)
   ok    P24 java: the first time the chat was opened the window "Where should the jawata chat open?" was on screen, its first button put the chat in the middle and was kept as placement=editor, and a second opening with the choice stored did not ask again
   ok    P13 rcp: the update site installs (director), org.jawata.eclipse.feature.feature.group is an installed root
   ok    P13 rcp: Eclipse starts in Xvfb, the workbench is ACTIVE; both org.jawata bundles, WikiText's Markdown editor and the Terminal's local shell are resolved
   ok    P15 rcp: in that started Eclipse the eight engine bundles and libraries (spi, core, mcp, catalogue, H2, Jackson x3) are resolved on its own JDT, LTK and JaCoCo
-  ok    D6/D7 rcp: the PDE tests ran inside this download (Tests run: 160, Failures: 0, Errors: 0, Skipped: 2): a .md opens in jawata's editor with source and a preview showing every table, the Terminal runs bash
+  ok    D6/D7 rcp: the PDE tests ran inside this download (Tests run: 168, Failures: 0, Errors: 0, Skipped: 2): a .md opens in jawata's editor with source and a preview showing every table, the Terminal runs bash
   ok    D2 rcp: the read-only run's Maven, Gradle and plug-in fixtures had their real natures in this download (natures present here: m2e=true, buildship=true, pde=true)
   ok    P17 rcp: the preference page shows every setting of the engine, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (Tests run: 4; the two proving tests are in the report and passed)
   ok    P18 rcp: a rename is one Undo step and one Undo restores it, a trial is not on the undo history, unsaved editor text is refused by name and untouched, write tools leave the configuration alone (Tests run: 6)
@@ -95,6 +96,7 @@
   ok    P22 rcp: the import command on the fixture workspace gives the projects an import by hand gives, through Eclipse's own Smart Import wizard, the person confirming each folder (Tests run: 6); path taken: the registry wizard, pre-filled by name
   ok    P13b rcp: the fixture's comment, suggested change, typed addition and typed removal show as five callouts in the preview; accepting, rejecting and resolving each change only their own mark through the real commands (Tests run: 1; unit: Tests run: 14)
   ok    P13c rcp: the jawata terminal, an xterm.js page over the person's own shell on a pseudo-terminal: the page holds a terminal, pressed keys reach the shell, its output and box-drawing characters arrive in the page, the size (at the start and when the terminal's area is resized) and the close reach it, and a real shell answers a typed command in the real page (Tests run: 1; Tests run: 6; Tests run: 4; Tests run: 1)
+  ok    P22b rcp: a draft the agent writes shows in the jawata commit draft view with HEAD unmoved, a draft with AI attribution is refused with its reason by the hook's own cases, the view says how to ask, and the plug-in's classes reference no commit or push (Tests run: 6)
   ok    P23 rcp: the chat view opens in the middle or in a side panel as chosen, loads and takes a command in each, the real first-run question has two buttons that each choose their place and asks once, a chat closed from the middle opens in a side panel when that is now chosen, a chat that carries the saved mark is not moved, an open chat stays, and the saved layout holds the view with its mark (Tests run: 10)
   ok    P23 rcp: the chat asks its page to reopen the last conversation when the person wants that, keeps the conversation a prompt, load or resume belongs to, and the preference page saves both choices (Tests run: 5)
   ok    D6 rcp: Eclipse's log in the test run has no rejected registration and no exception from jawata's code

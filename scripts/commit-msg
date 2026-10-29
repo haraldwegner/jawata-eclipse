@@ -1,6 +1,9 @@
 #!/bin/sh
-# Reject AI attribution in commit messages (Harald's standing rule).
-if grep -qiE 'co-authored-by:[[:space:]]*(claude|anthropic)|noreply@anthropic\.com|generated with[[:space:]]+\[?claude' "$1"; then
+# Reject AI attribution in commit messages (Harald's standing rule). The cases are listed in one file that the plug-in's check on a
+# commit draft reads as well (org.jawata.eclipse.commit.CommitDraftCheck), so the two cannot drift.
+patterns="$(git rev-parse --show-toplevel)/bundles/org.jawata.eclipse/resources/commit-attribution-patterns.txt"
+[ -f "$patterns" ] || { echo "BLOCKED: the list of refused commit-message cases is missing: $patterns" >&2; exit 1; }
+if grep -v '^#' "$patterns" | grep -v '^[[:space:]]*$' | grep -qiE -f /dev/stdin "$1"; then
   echo "BLOCKED: AI attribution (Claude/Anthropic) is prohibited in commit messages. Remove it." >&2
   exit 1
 fi

@@ -1,0 +1,7 @@
+# The cases a commit message is refused for (Harald's standing rule: no AI attribution in commit messages).
+# One extended regular expression per line, matched without regard to case. Read by scripts/commit-msg (grep -E) and by
+# org.jawata.eclipse.commit.CommitDraftCheck, so the repository's hook and the check on a draft cannot drift apart.
+# Write [[:space:]] for white space: the Java check turns it into \s.
+co-authored-by:[[:space:]]*(claude|anthropic)
+noreply@anthropic\.com
+generated with[[:space:]]+\[?claude
