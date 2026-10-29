@@ -1,8 +1,8 @@
 # os-check on linux
 
-- started: 2026-10-29T05:17:19Z (UTC)
+- started: 2026-10-29T06:07:53Z (UTC)
 - machine: Linux 7.0.9-76070009-generic, x86_64; the run used Xvfb, a virtual screen; the desktop the person sits at: x11
-- plug-in commit: 332066c (working tree has uncommitted changes)
+- plug-in commit: 5d64a90 (working tree has uncommitted changes)
 - exit code of scripts/28k-e2e.sh: 0; promises passed: 106; failed: 0
 
 ## What the run said
