@@ -53,14 +53,34 @@ public class JawataPreferencePageTest {
     }
 
     @Test
-    public void everySettingTheEngineReadsIsOnThePage() {
+    public void everySettingAPersonCanChangeIsOnThePageAndTheThreeLauncherOnesAreNot() {
         Opened opened = open();
         try {
+            // the three the launcher sets or that are experiments (his ruling of 2026-10-28), written here on their own, apart from the page
+            List<String> launcherOnes = List.of("jawata.dist.root", "jawata.workspace.root", "jawata.embed.symptoms");
             List<String> registry = SettingKeys.all().stream().map(SettingKey::name).toList();
-            assertEquals(registry, opened.page().shownKeys(), "the page shows the engine's settings, all of them and in its order");
-            assertTrue(registry.stream().allMatch(k -> opened.page().fieldFor(k) != null && !opened.page().fieldFor(k).isDisposed()),
+            assertTrue(registry.containsAll(launcherOnes), "the engine still has the three, so their names here are right: " + registry);
+            List<String> offered = registry.stream().filter(k -> !launcherOnes.contains(k)).toList();
+            assertEquals(offered, opened.page().shownKeys(), "the page shows the engine's settings but those three, in the engine's order");
+            assertTrue(offered.stream().allMatch(k -> opened.page().fieldFor(k) != null && !opened.page().fieldFor(k).isDisposed()),
                 "and each of them has a live field to type into, not only a name in a list");
+            assertTrue(launcherOnes.stream().allMatch(k -> opened.page().fieldFor(k) == null), "and the three have no field");
         } finally {
+            onUserInterface(opened.shell()::dispose);
+        }
+    }
+
+    /** A setting the page does not offer keeps its stored value when the page is saved: saving the page must not wipe what it never showed. */
+    @Test
+    public void savingThePageLeavesAStoredValueOfAHiddenSettingAlone() throws Exception {
+        org.eclipse.core.runtime.preferences.IEclipsePreferences node = InstanceScope.INSTANCE.getNode(PLUGIN);
+        node.put("jawata.embed.symptoms", "false");
+        Opened opened = open();
+        try {
+            onUserInterface(() -> opened.page().performOk());
+            assertEquals("false", node.get("jawata.embed.symptoms", null), "the stored value of a setting the page does not offer is still there");
+        } finally {
+            node.remove("jawata.embed.symptoms");
             onUserInterface(opened.shell()::dispose);
         }
     }

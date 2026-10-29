@@ -23,15 +23,22 @@ import org.jawata.mcp.engine.SettingKeys;
 import org.osgi.service.prefs.BackingStoreException;
 
 /**
- * Every setting the engine reads, on one of Eclipse's preference pages (plan Stage 17, spec D5: "every setting is on Eclipse's
- * preference pages"). The page is built from the engine's own list of settings, {@link SettingKeys#all()}, so a setting the engine
- * gains is on the page without anyone remembering to add it. A field left empty is a setting that is not set, and the default shown
+ * Every setting the engine reads that a person can usefully change, on one of Eclipse's preference pages (plan Stage 17, spec D5; three
+ * are not offered, see {@code NOT_OFFERED}). The page is built from the engine's own list of settings, {@link SettingKeys#all()}, so a
+ * setting the engine gains is on the page without anyone remembering to add it. A field left empty is a setting that is not set, and the default shown
  * with it applies; what is typed here is stored as the plug-in's Eclipse preference of the same name, which is where the engine
  * reads it. There is no key or password anywhere in it, because the connection inside Eclipse has none.
  */
 public final class JawataPreferencePage extends PreferencePage implements IWorkbenchPreferencePage {
 
     private static final String PLUGIN_ID = "org.jawata.eclipse";
+
+    /**
+     * Settings the engine reads that a person has no use for here (his ruling of 2026-10-28): the launcher sets the distribution and workspace
+     * roots, and the symptom embedding is an experiment. They keep working as before, from the launch properties or a stored value, and a
+     * stored value is left alone when the page is saved; they are only not offered.
+     */
+    private static final java.util.Set<String> NOT_OFFERED = java.util.Set.of("jawata.dist.root", "jawata.workspace.root", "jawata.embed.symptoms");
 
     private final Map<String, Text> fields = new LinkedHashMap<>();
 
@@ -50,6 +57,9 @@ public final class JawataPreferencePage extends PreferencePage implements IWorkb
         IEclipsePreferences chosen = InstanceScope.INSTANCE.getNode(PLUGIN_ID);
         IEclipsePreferences defaults = DefaultScope.INSTANCE.getNode(PLUGIN_ID);
         for (SettingKey key : SettingKeys.all()) {
+            if (NOT_OFFERED.contains(key.name())) {
+                continue;
+            }
             String standing = defaults.get(key.name(), key.fallback());
             String explanation = key.meaning() + " Default: " + standing + ".";
             String launched = System.getProperty(key.name());

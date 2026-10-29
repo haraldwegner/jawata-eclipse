@@ -330,20 +330,20 @@ for pkg in java rcp; do
         *"$want"*) ok "D2 $pkg: the read-only run's Maven, Gradle and plug-in fixtures had their real natures in this download ($natures)" ;;
         *) fail "D2 $pkg: the fixtures did not have the real natures this download should carry (wanted $want; ${natures:-the test printed none})" ;;
     esac
-    # P17 (plan Stage 17, spec D5): in this download the preference page lists every setting of the engine, and a value typed on it
-    # and saved shows in the next health_check answer of a client that connects with no key (JawataPreferencePageTest). The two tests
-    # that prove those two promises must each be in the report and passed: a passed testcase is a self-closed element, a skipped or
+    # P17 (plan Stage 17, spec D5): in this download the preference page lists every setting of the engine but three (the distribution root and the workspace root, which the launcher sets, and the symptom embedding experiment; his ruling of 2026-10-28), leaves a stored value of those three alone when saved, and a value typed on it
+    # and saved shows in the next health_check answer of a client that connects with no key (JawataPreferencePageTest). The three tests
+    # that prove those promises must each be in the report and passed: a passed testcase is a self-closed element, a skipped or
     # failed one has a child, so deleting or disabling either test turns this check red instead of leaving a smaller green count.
     prefs="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.JawataPreferencePageTest' "$tests_out" | head -1)"
     prefs_xml="$here/tests/org.jawata.eclipse.tests/target/surefire-reports/TEST-org.jawata.eclipse.tests.JawataPreferencePageTest.xml"
     prefs_unproved=""
-    for proving in aValueTypedOnThePageIsWhatTheEngineReadsAndShowsInAToolAnswer everySettingTheEngineReadsIsOnThePage; do
+    for proving in aValueTypedOnThePageIsWhatTheEngineReadsAndShowsInAToolAnswer everySettingAPersonCanChangeIsOnThePageAndTheThreeLauncherOnesAreNot savingThePageLeavesAStoredValueOfAHiddenSettingAlone; do
         grep -q "<testcase name=\"$proving\"[^>]*/>" "$prefs_xml" 2>/dev/null || prefs_unproved="$prefs_unproved $proving"
     done
     case "$prefs" in
         "Tests run: "[0-9]*", Failures: 0, Errors: 0"*)
             if [ -z "$prefs_unproved" ]; then
-                ok "P17 $pkg: the preference page shows every setting of the engine, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (${prefs%%,*}; the two proving tests are in the report and passed)"
+                ok "P17 $pkg: the preference page shows every setting of the engine but the three launcher ones and leaves their stored values alone, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (${prefs%%,*}; the three proving tests are in the report and passed)"
             else
                 fail "P17 $pkg: the preference page tests ran but these did not pass or are missing:$prefs_unproved"
             fi ;;
