@@ -99,6 +99,27 @@ public class JavaModelHostTest {
         }
     }
 
+    /** S19-65: a call that names a type or a package but no project goes to the projects whose own sources hold it, as the headless engine does. */
+    @Test
+    public void theProjectsHoldingATypeOrAPackageAreNamedAndNoOtherIsKept() throws Exception {
+        IProject java = WorkspaceProjects.java("jawata-holds-");
+        IProject closed = WorkspaceProjects.java("jawata-holdsclosed-");
+        try (EclipseJdtService service = new EclipseJdtService(ROOT, 30)) {
+            closed.close(null);
+            String key = service.allProjects().stream()
+                .filter(p -> p.javaProject().getProject().getName().equals(java.getName())).findFirst().orElseThrow().projectKey();
+
+            assertTrue(service.projectsHoldingType("p.Greeter").contains(key), "the project that declares p.Greeter holds it: " + service.projectsHoldingType("p.Greeter"));
+            assertEquals(List.of(), service.projectsHoldingType("p.NoSuchType"), "a type nobody declares narrows to no project, not to every one");
+            assertEquals(List.of(), service.projectsHoldingType(" "), "a blank name holds nothing");
+            assertTrue(service.projectsHoldingPackage("p").contains(key), "the project with source files in p holds the package");
+            assertEquals(List.of(), service.projectsHoldingPackage("zzz"), "a package nobody declares narrows to no project");
+            assertFalse(service.projectsHoldingType("p.Greeter").contains(closed.getName()), "a closed project is not asked");
+        } finally {
+            WorkspaceProjects.deleteQuietly(java, closed);
+        }
+    }
+
     @Test
     public void aProjectAddedLaterIsSeenWithoutAnyoneLoadingIt() throws Exception {
         try (EclipseJdtService service = new EclipseJdtService(ROOT, 30)) {
