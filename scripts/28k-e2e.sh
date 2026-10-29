@@ -34,6 +34,14 @@ ok()   { echo "  ok    $*"; passed=$((passed + 1)); }
 fail() { echo "  FAIL  $*"; failed=$((failed + 1)); }
 
 [ -f "$site/content.jar" ] || { echo "no update site at $site — run: xvfb-run -a mvn -B verify"; exit 2; }
+# The run installs the jawata bundles from the built site and rebuilds only the test bundle, so a bundle changed since the site was built
+# would be tested in its OLD form and the run would still say passed (measured 2026-10-29, Stage 13c). Refuse instead. Not for a tampered
+# copy (JAWATA_SITE), which the red controls build on purpose.
+if [ -z "${JAWATA_SITE:-}" ]; then
+    older="$(find "$here/bundles" "$here/features" -type f \( -path '*/src/*' -o -path '*/page/*' -o -name plugin.xml -o -name MANIFEST.MF -o -name build.properties -o -name feature.xml \) \
+        -not -path '*/target/*' -not -path '*/org.jawata.eclipse.chat/page/*' -newer "$site/content.jar" 2>/dev/null | head -3)"
+    [ -z "$older" ] || { echo "the update site is older than these sources, so the run would test the previous build:"; echo "$older"; echo "run: xvfb-run -a mvn -B verify"; exit 2; }
+fi
 command -v xvfb-run >/dev/null || { echo "xvfb-run is not installed"; exit 2; }
 
 # The engine's promises run first (plan §5, the E2E gate): a promise once added is never removed, and the
