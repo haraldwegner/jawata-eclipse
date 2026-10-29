@@ -37,8 +37,7 @@
           <useUIHarness>true</useUIHarness>
           <useUIThread>false</useUIThread>
           <product>org.eclipse.platform.ide</product>
-          <application>org.eclipse.ui.ide.workbench</application>
-          <!-- The engine the workbench starts writes its note here and not into the machine's real cache folder, where studio would list
+          <application>org.eclipse.ui.ide.workbench</application>          <!-- The engine the workbench starts writes its note here and not into the machine's real cache folder, where studio would list
                the test run as a running Eclipse workspace (plan Stage 16, step 16.5). -->
           <systemProperties>
             <jawata.engine.notes.dir>${project.build.directory}/engine-notes</jawata.engine.notes.dir>
@@ -53,6 +52,26 @@
   </build>
 
   <profiles>
+    <!-- The one live agent turn (LiveTurnTest, plan 21.15) costs tokens and needs a login, so every build leaves it out unless
+         -Djawata.live=true is given; only scripts/28k-live-turn.sh gives it. -->
+    <profile>
+      <id>no-live-turn</id>
+      <activation><property><name>!jawata.live</name></property></activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.eclipse.tycho</groupId>
+            <artifactId>tycho-surefire-plugin</artifactId>
+            <version>${tycho.version}</version>
+            <configuration>
+              <excludes>
+                <exclude>**/LiveTurnTest.java</exclude>
+              </excludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <!-- The released engine's bundles in Tycho's own test runtime, so EngineBundlesResolveTest sees them (plan Stage 15). Not in the
          in-download run below: there the engine comes from the installed update site, and asking for the feature again would install
          a second build of it (a newer qualifier) beside the installed one, which p2 refuses. -->

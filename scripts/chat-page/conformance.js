@@ -91,6 +91,49 @@ window.playByCommands = async (spec = {}) => {
   }
 };
 
+/**
+ * Step 21.15 (the live turn, opt-in): the same chat driven by Java commands against a REAL agent, which takes minutes and not seconds. It
+ * waits until `turns` prompts have ended or `timeoutMs` has passed, then sends Java {op:'played', body, tools, ended} where `tools` lists each
+ * tool call the agent made as {id, title, status} (the latest title and status the agent gave it) and `ended` is how many prompts ended.
+ * @param {{ turns: number, timeoutMs: number }} spec
+ */
+window.playLive = async (spec) => {
+  const chat = createChat(host.ports);
+  const port = new RecordingPort();
+  chat.controller.attach(port);
+  commandTable = chatCommands(chat, (error) => {
+    bridge.call({ op: 'log', message: `ERROR a prompt the person sent failed: ${error instanceof Error ? error.message : String(error)}` });
+  });
+  const ended = () => port.toView.filter((message) => message.type === 'promptEnd').length;
+  // nobody sits at the screen of a live turn: a tool the agent asks leave for is allowed once, so the turn is not left waiting
+  const post = port.post.bind(port);
+  port.post = (message) => {
+    post(message);
+    if (message.type === 'permissionRequest') {
+      const allowing = message.options.find((option) => option.kind === 'allow_once') ?? message.options.find((option) => option.kind === 'allow_always') ?? message.options[0];
+      void Promise.resolve().then(() => chat.controller.handle({ type: 'answerPermission', requestId: message.requestId, optionId: allowing.optionId }));
+    }
+  };
+  try {
+    for (const started = Date.now(); Date.now() - started < spec.timeoutMs && ended() < spec.turns;) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const calls = new Map();
+    for (const message of port.toView) {
+      const update = message.type === 'sessionUpdate' ? message.update : undefined;
+      if (update && (update.sessionUpdate === 'tool_call' || update.sessionUpdate === 'tool_call_update')) {
+        const before = calls.get(update.toolCallId) ?? { id: update.toolCallId, title: '', status: '' };
+        calls.set(update.toolCallId, { id: before.id, title: update.title || before.title, status: update.status || before.status });
+      }
+    }
+    bridge.call({ op: 'played', body: goldenBody(port.toView), tools: [...calls.values()], ended: ended() });
+  } finally {
+    commandTable = undefined;
+    chat.dispose();
+  }
+};
+
 /** Step 21.7: the names of the commands the page runs, sent to Java as {op:'asked', value} (comma separated). */
 window.commandNames = () => {
   bridge.call({ op: 'asked', value: Object.keys(chatCommands({ flow: {}, controller: {} })).join(',') });
