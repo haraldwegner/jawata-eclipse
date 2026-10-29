@@ -85,6 +85,47 @@ public class JawataPreferencePageTest {
         }
     }
 
+    /**
+     * A machine-wide setting typed on the page is kept once for the installation (the configuration scope), not once per workspace, and a
+     * copy an earlier version stored in the workspace is dropped; every other setting stays in the workspace's own node.
+     */
+    @Test
+    public void aMachineWideSettingIsKeptOncePerInstallationAndTheOthersPerWorkspace() throws Exception {
+        String machine = SettingKeys.DATA_HOME.name();
+        String perWorkspace = SettingKeys.TIMEOUT_SECONDS.name();
+        org.eclipse.core.runtime.preferences.IEclipsePreferences workspaceNode = InstanceScope.INSTANCE.getNode(PLUGIN);
+        org.eclipse.core.runtime.preferences.IEclipsePreferences installationNode = org.eclipse.core.runtime.preferences.ConfigurationScope.INSTANCE.getNode(PLUGIN);
+        // the installation's settings live on disk and outlast a test run, so the test starts from nothing and leaves nothing
+        installationNode.remove(machine);
+        installationNode.remove(perWorkspace);
+        installationNode.flush();
+        workspaceNode.put(machine, "/old/per/workspace");
+        Opened opened = open();
+        try {
+            AtomicReference<String> shown = new AtomicReference<>();
+            onUserInterface(() -> shown.set(opened.page().fieldFor(machine).getText()));
+            assertEquals("/old/per/workspace", shown.get(), "a value an earlier version stored per workspace is still shown");
+
+            onUserInterface(() -> {
+                opened.page().fieldFor(machine).setText("/shared/home");
+                opened.page().fieldFor(perWorkspace).setText("33");
+                opened.page().performOk();
+            });
+            assertEquals("/shared/home", installationNode.get(machine, null), "the machine-wide setting is stored for the installation");
+            org.junit.jupiter.api.Assertions.assertNull(workspaceNode.get(machine, null), "and the per-workspace copy is gone");
+            assertEquals("33", workspaceNode.get(perWorkspace, null), "another setting is stored for the workspace");
+            org.junit.jupiter.api.Assertions.assertNull(installationNode.get(perWorkspace, null), "and not for the installation");
+        } finally {
+            workspaceNode.remove(machine);
+            workspaceNode.remove(perWorkspace);
+            installationNode.remove(machine);
+            installationNode.remove(perWorkspace);
+            workspaceNode.flush();
+            installationNode.flush();
+            onUserInterface(opened.shell()::dispose);
+        }
+    }
+
     /** The first scrolled area inside a control, which is where the page's form lives. */
     private static org.eclipse.swt.custom.ScrolledComposite scrolledAreaIn(org.eclipse.swt.widgets.Control control) {
         if (control instanceof org.eclipse.swt.custom.ScrolledComposite scrolled) {

@@ -51,7 +51,25 @@
     },
     /** Types text as if the person had: it goes out as input, like every key. */
     input: function (text) { term.input(text, true); },
-    focus: function () { term.focus(); }
+    focus: function () { term.focus(); },
+    /**
+     * Sets the look of the terminal to what Eclipse looks like: {fontFamily, fontSize (CSS px), background, foreground}. Called without
+     * an argument it only answers what the terminal looks like now. The host sends it when the page is ready and again when the person
+     * changes the editor font in Eclipse.
+     */
+    look: function (o) {
+      if (o) {
+        term.options.fontFamily = '"' + o.fontFamily + '", "DejaVu Sans Mono", "Menlo", "Consolas", monospace';
+        term.options.fontSize = o.fontSize;
+        term.options.theme = { background: o.background, foreground: o.foreground };
+        document.body.style.background = o.background;
+        refit();
+      }
+      return {
+        fontFamily: term.options.fontFamily, fontSize: term.options.fontSize,
+        background: term.options.theme.background, foreground: term.options.theme.foreground
+      };
+    }
   };
 
   // The host's function is put into the page by the browser after the page has started, so the page waits for it before it says it is ready.

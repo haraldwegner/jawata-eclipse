@@ -3,14 +3,18 @@ package org.jawata.eclipse.terminal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.eclipse.core.runtime.FileLocator;
+import org.eclipse.jface.resource.JFaceResources;
+import org.eclipse.jface.util.IPropertyChangeListener;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.browser.BrowserFunction;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
+import org.jawata.eclipse.look.EclipseLook;
 import org.osgi.framework.FrameworkUtil;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,11 +34,18 @@ final class TerminalPage {
     private final Display display;
     private final Supplier<TerminalSession> sessions;
     private volatile TerminalSession session;
+    private final IPropertyChangeListener editorFont;
 
     TerminalPage(Composite parent, Supplier<TerminalSession> sessions) {
         this.sessions = sessions;
         this.display = parent.getDisplay();
         this.browser = new Browser(parent, SWT.NONE);
+        this.editorFont = event -> {
+            if (JFaceResources.TEXT_FONT.equals(event.getProperty())) {
+                display.asyncExec(this::applyLook);
+            }
+        };
+        JFaceResources.getFontRegistry().addListener(editorFont);
         new BrowserFunction(browser, "jawataTerminalHost") {
             @Override
             public Object function(Object[] arguments) {
@@ -56,7 +67,11 @@ final class TerminalPage {
         try {
             JsonNode node = JSON.readTree(message);
             switch (node.path("type").asText()) {
-                case "ready" -> start(node.path("cols").asInt(80), node.path("rows").asInt(24));
+                case "ready" -> {
+                    // not called here: a script run from inside the page's own call to the host waits on that call, and WebKit gives up after 10 s
+                    display.asyncExec(this::applyLook);
+                    start(node.path("cols").asInt(80), node.path("rows").asInt(24));
+                }
                 case "input" -> {
                     TerminalSession open = session;
                     if (open != null) {
@@ -88,6 +103,20 @@ final class TerminalPage {
         started.resize(columns, rows);
     }
 
+    /** Tells the page what Eclipse looks like now: the surface's colours and the editor text font. Runs on the user interface thread. */
+    private void applyLook() {
+        if (browser.isDisposed()) {
+            return;
+        }
+        EclipseLook look = EclipseLook.of(browser.getParent());
+        try {
+            browser.execute("jawataTerminal.look(" + JSON.writeValueAsString(Map.of("fontFamily", look.textFamily(), "fontSize", look.textPixels(),
+                "background", look.background(), "foreground", look.foreground())) + ");");
+        } catch (IOException unwritable) {
+            // the page keeps the look it has: a look that cannot be written is not worth stopping the terminal for
+        }
+    }
+
     private void write(byte[] bytes) {
         if (!browser.isDisposed()) {
             browser.execute("jawataTerminal.write('" + Base64.getEncoder().encodeToString(bytes) + "');");
@@ -110,6 +139,7 @@ final class TerminalPage {
     }
 
     void close() {
+        JFaceResources.getFontRegistry().removeListener(editorFont);
         TerminalSession open = session;
         session = null;
         if (open != null) {

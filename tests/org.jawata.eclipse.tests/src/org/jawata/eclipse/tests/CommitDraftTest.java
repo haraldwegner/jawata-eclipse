@@ -14,13 +14,20 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
+import org.eclipse.core.commands.AbstractHandler;
+import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.ActiveShellExpression;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.handlers.IHandlerActivation;
+import org.eclipse.ui.handlers.IHandlerService;
 import org.jawata.eclipse.commit.CommitDraftCheck;
 import org.jawata.eclipse.commit.CommitDraftView;
 import org.junit.jupiter.api.AfterEach;
@@ -145,6 +152,76 @@ public class CommitDraftTest {
         assertTrue(Await.until(() -> UiThread.call(() -> view.shown().contains("Ask the agent in the chat") && view.shown().contains("jawata-commit-draft.txt"))),
             "the view says how to ask: " + UiThread.call(view::shown));
         assertFalse(UiThread.call(view::copyEnabled), "there is nothing to copy");
+    }
+
+    /** Stands in for the chat's sendPrompt command while a test runs, so no real agent is asked: it keeps the text it was sent, or fails with a reason. */
+    private static final class ChatStandIn extends AbstractHandler {
+        final AtomicReference<String> received = new AtomicReference<>();
+        private final String failure;
+
+        ChatStandIn(String failure) {
+            this.failure = failure;
+        }
+
+        @Override
+        public Object execute(ExecutionEvent event) throws org.eclipse.core.commands.ExecutionException {
+            if (failure != null) {
+                throw new org.eclipse.core.commands.ExecutionException(failure);
+            }
+            received.set(event.getParameter("org.jawata.eclipse.chat.sendPrompt.text"));
+            return null;
+        }
+    }
+
+    /** Puts the stand-in in the chat command's place while the workbench window is the active shell, which is more specific than the chat's own handler. */
+    private IHandlerActivation standInFor(ChatStandIn handler) throws Exception {
+        return UiThread.call(() -> {
+            Shell window = PlatformUI.getWorkbench().getWorkbenchWindows()[0].getShell();
+            window.forceActive();
+            return PlatformUI.getWorkbench().getService(IHandlerService.class)
+                .activateHandler("org.jawata.eclipse.chat.sendPrompt", handler, new ActiveShellExpression(window));
+        });
+    }
+
+    @Test
+    public void theAskButtonSendsTheRequestThroughTheChatsCommand() throws Exception {
+        CommitDraftView view = showTheView();
+        // the view asks about the repository that holds the newest draft; a workspace may hold other repositories (the download's does), so this one gets the newest
+        Files.writeString(draftFile(), "Show the draft in a view\n");
+        ChatStandIn chat = new ChatStandIn(null);
+        IHandlerActivation activation = standInFor(chat);
+        try {
+            assertTrue(Await.until(() -> UiThread.call(view::askEnabled)), "the button can be pressed in a repository: " + UiThread.call(view::shown));
+            UiThread.call(() -> {
+                view.askTheAgent();
+                return null;
+            });
+            assertEquals("Write a commit message for my changes into " + draftFile(), chat.received.get(), "the chat was sent the request that names the draft file");
+        } finally {
+            UiThread.call(() -> {
+                PlatformUI.getWorkbench().getService(IHandlerService.class).deactivateHandler(activation);
+                return null;
+            });
+        }
+    }
+
+    @Test
+    public void whenTheChatCannotBeAskedTheViewSaysWhy() throws Exception {
+        CommitDraftView view = showTheView();
+        IHandlerActivation activation = standInFor(new ChatStandIn("no agent is connected"));
+        try {
+            assertTrue(Await.until(() -> UiThread.call(view::askEnabled)), "the button can be pressed in a repository");
+            UiThread.call(() -> {
+                view.askTheAgent();
+                return null;
+            });
+            assertTrue(UiThread.call(view::shown).contains("The chat could not be asked: no agent is connected"), "the reason is shown: " + UiThread.call(view::shown));
+        } finally {
+            UiThread.call(() -> {
+                PlatformUI.getWorkbench().getService(IHandlerService.class).deactivateHandler(activation);
+                return null;
+            });
+        }
     }
 
     @Test

@@ -7,7 +7,9 @@
             name="jawata chat"
             category="org.jawata.eclipse.views"
             class="org.jawata.eclipse.chat.ChatView"
-            allowMultiple="false"/>
+            allowMultiple="false">
+         <description>The conversation with your coding agent: ask it to read, change and run your code through jawata's tools, and see what it did.</description>
+      </view>
    </extension>
    <!-- Plan Stage 21, step 21.8: where the person says which agent the chat talks to and the folder it works in. -->
    <extension point="org.eclipse.ui.preferencePages">

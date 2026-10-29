@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.core.runtime.preferences.ConfigurationScope;
 import org.eclipse.core.runtime.preferences.DefaultScope;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
@@ -18,6 +19,7 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
+import org.jawata.eclipse.host.EclipseSettings;
 import org.jawata.mcp.engine.SettingKey;
 import org.jawata.mcp.engine.SettingKeys;
 import org.osgi.service.prefs.BackingStoreException;
@@ -55,13 +57,18 @@ public final class JawataPreferencePage extends PreferencePage implements IWorkb
         Composite form = new Composite(scroll, SWT.NONE);
         form.setLayout(new GridLayout(2, false));
         IEclipsePreferences chosen = InstanceScope.INSTANCE.getNode(PLUGIN_ID);
+        IEclipsePreferences shared = ConfigurationScope.INSTANCE.getNode(PLUGIN_ID);
         IEclipsePreferences defaults = DefaultScope.INSTANCE.getNode(PLUGIN_ID);
         for (SettingKey key : SettingKeys.all()) {
             if (NOT_OFFERED.contains(key.name())) {
                 continue;
             }
+            boolean machineWide = EclipseSettings.MACHINE_WIDE.contains(key.name());
             String standing = defaults.get(key.name(), key.fallback());
             String explanation = key.meaning() + " Default: " + standing + ".";
+            if (machineWide) {
+                explanation += " Kept once for this Eclipse installation: every workspace of it uses the value typed here.";
+            }
             String launched = System.getProperty(key.name());
             if (launched != null) {
                 // what applies when this field is empty is not the default: Eclipse was started with a value for it
@@ -72,7 +79,8 @@ public final class JawataPreferencePage extends PreferencePage implements IWorkb
             name.setToolTipText(explanation);
             Text field = new Text(form, SWT.BORDER);
             field.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-            field.setText(chosen.get(key.name(), ""));
+            // a machine-wide value is read from the installation's node; one stored per workspace before that is still shown until it is saved again
+            field.setText(machineWide ? shared.get(key.name(), chosen.get(key.name(), "")) : chosen.get(key.name(), ""));
             field.setToolTipText(explanation);
             fields.put(key.name(), field);
             Label meaning = new Label(form, SWT.WRAP);
@@ -107,16 +115,23 @@ public final class JawataPreferencePage extends PreferencePage implements IWorkb
     @Override
     public boolean performOk() {
         IEclipsePreferences chosen = InstanceScope.INSTANCE.getNode(PLUGIN_ID);
+        IEclipsePreferences shared = ConfigurationScope.INSTANCE.getNode(PLUGIN_ID);
         fields.forEach((key, field) -> {
             String value = field.getText().trim();
-            if (value.isEmpty()) {
+            IEclipsePreferences home = EclipseSettings.MACHINE_WIDE.contains(key) ? shared : chosen;
+            if (home != chosen) {
+                // a machine-wide value lives in one place only: a copy stored per workspace by an earlier version is dropped
                 chosen.remove(key);
+            }
+            if (value.isEmpty()) {
+                home.remove(key);
             } else {
-                chosen.put(key, value);
+                home.put(key, value);
             }
         });
         try {
             chosen.flush();
+            shared.flush();
         } catch (BackingStoreException e) {
             setErrorMessage("The settings could not be saved: " + e.getMessage());
             return false;

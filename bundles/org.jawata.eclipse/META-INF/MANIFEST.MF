@@ -45,6 +45,7 @@ Export-Package: org.jawata.eclipse.commit;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.host;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.imports;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.java;x-friends:="org.jawata.eclipse.tests",
+ org.jawata.eclipse.look;x-friends:="org.jawata.eclipse.terminal,org.jawata.eclipse.tests",
  org.jawata.eclipse.preferences;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.run;x-friends:="org.jawata.eclipse.tests",
  org.jawata.eclipse.specs

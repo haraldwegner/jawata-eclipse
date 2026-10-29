@@ -140,6 +140,32 @@ public class HostPortsTest {
     }
 
     @Test
+    public void aMachineWideSettingIsReadFromTheInstallationBeforeTheWorkspaceAndNoOtherIs() throws Exception {
+        String suffix = UUID.randomUUID().toString();
+        IEclipsePreferences workspace = InstanceScope.INSTANCE.getNode("org.jawata.eclipse.tests.machine.workspace." + suffix);
+        IEclipsePreferences installation = InstanceScope.INSTANCE.getNode("org.jawata.eclipse.tests.machine.installation." + suffix);
+        try {
+            EclipseSettings settings = new EclipseSettings(workspace, installation, Map.of(SettingKeys.DATA_HOME.name(), "/state/data"), key -> null);
+            String machine = SettingKeys.DATA_HOME.name();
+            String perWorkspace = SettingKeys.TIMEOUT_SECONDS.name();
+
+            assertEquals(Optional.of("/state/data"), settings.get(machine), "nothing set: the host default");
+            workspace.put(machine, "/older/per/workspace");
+            assertEquals(Optional.of("/older/per/workspace"), settings.get(machine), "a value stored per workspace by an earlier version still answers");
+            installation.put(machine, "/shared/home");
+            assertEquals(Optional.of("/shared/home"), settings.get(machine), "the installation's value wins over the workspace's");
+
+            installation.put(perWorkspace, "99");
+            assertEquals(Optional.empty(), settings.get(perWorkspace), "a setting that is not machine-wide is never read from the installation");
+            workspace.put(perWorkspace, "33");
+            assertEquals(Optional.of("33"), settings.get(perWorkspace), "it is read from the workspace");
+        } finally {
+            workspace.removeNode();
+            installation.removeNode();
+        }
+    }
+
+    @Test
     public void theFoldersComeFromTheSettingsAndTheMemoryIsLookedForBesideTheOpenProjects() throws Exception {
         Path project = Files.createTempDirectory("jawata-eclipse-project");
         try {

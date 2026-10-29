@@ -157,6 +157,110 @@ public class TerminalPageTest {
             "putting the area back told the session its first size again (" + settled + "): " + session.columns + "x" + session.rows);
     }
 
+    /** The look the page has now, as the page reports it: {fontFamily, fontSize (CSS px), background, foreground}. */
+    private String look() {
+        return String.valueOf(UiThread.call(() -> view.browser().evaluate("return JSON.stringify(jawataTerminal.look());")));
+    }
+
+    private static long cssPixels(int points) {
+        return Math.round(points * 96.0 / 72.0);
+    }
+
+    /** The colour as a page spells it, so the expected text is written here and not copied from the code under test. */
+    private static String hex(org.eclipse.swt.graphics.Color colour) {
+        return String.format("#%02x%02x%02x", colour.getRed(), colour.getGreen(), colour.getBlue());
+    }
+
+    /** Ledger 28k-A13c-7 b: the font and the colours are Eclipse's, not fixed in the page; a font changed in Eclipse reaches the page. */
+    @Test
+    public void theFontAndTheColoursFollowEclipse() throws Exception {
+        assertTrue(Await.until(() -> session.columns > 0), "the page is ready");
+        org.eclipse.swt.graphics.FontData font = UiThread.call(() -> org.eclipse.jface.resource.JFaceResources.getTextFont().getFontData()[0]);
+        String background = UiThread.call(() -> hex(view.browser().getParent().getBackground()));
+        String foreground = UiThread.call(() -> hex(view.browser().getParent().getForeground()));
+        String taken = Await.found("the page took Eclipse's look", () -> {
+            String now = look();
+            return now.contains("\"fontSize\":" + cssPixels(font.getHeight()) + ",") ? Optional.of(now) : Optional.empty();
+        });
+        assertTrue(taken.contains(font.getName()), "the page's font is the editor text font " + font.getName() + ": " + taken);
+        assertTrue(taken.contains("\"background\":\"" + background + "\"") && taken.contains("\"foreground\":\"" + foreground + "\""),
+            "the page's colours are the view's (" + background + " on " + foreground + "): " + taken);
+
+        org.eclipse.swt.graphics.FontData larger = new org.eclipse.swt.graphics.FontData(font.getName(), font.getHeight() + 6, font.getStyle());
+        UiThread.call(() -> {
+            org.eclipse.jface.resource.JFaceResources.getFontRegistry().put(org.eclipse.jface.resource.JFaceResources.TEXT_FONT,
+                new org.eclipse.swt.graphics.FontData[] { larger });
+            return null;
+        });
+        try {
+            assertTrue(Await.until(() -> look().contains("\"fontSize\":" + cssPixels(larger.getHeight()) + ",")),
+                "a larger editor font in Eclipse reached the page: " + look());
+        } finally {
+            UiThread.call(() -> {
+                org.eclipse.jface.resource.JFaceResources.getFontRegistry().put(org.eclipse.jface.resource.JFaceResources.TEXT_FONT,
+                    new org.eclipse.swt.graphics.FontData[] { font });
+                return null;
+            });
+        }
+    }
+
+    /** Ledger 28k-A13c-7 c: a paste as the browser raises it (a clipboard event on the page's input) reaches the session as typed text. */
+    @Test
+    public void aPastedTextReachesTheSessionAsTyped() throws Exception {
+        assertTrue(Await.until(() -> session.columns > 0), "the page is ready");
+        UiThread.call(() -> view.browser().evaluate(
+            "var t = document.querySelector('.xterm-helper-textarea'); t.focus(); var d = new DataTransfer(); d.setData('text/plain', 'echo pasted');"
+            + "t.dispatchEvent(new ClipboardEvent('paste', { clipboardData: d, bubbles: true, cancelable: true })); return true;"));
+        assertTrue(Await.until(() -> session.typedContains("echo pasted")), "the pasted text reached the session: " + session.typed);
+    }
+
+    /** Ledger 28k-A13c-7 c: what is selected on the screen is what a copy puts on the clipboard, box lines included. */
+    @Test
+    public void aCopyOfTheSelectedScreenHoldsTheTextOnIt() throws Exception {
+        assertTrue(Await.until(() -> session.columns > 0), "the page is ready");
+        session.say("copy me ┌──┐\r\n");
+        Await.found("the text on the screen", () -> Optional.ofNullable(UiThread.call(() -> {
+            Object text = view.browser().evaluate("return document.querySelector('.xterm-rows') ? document.querySelector('.xterm-rows').innerText : '';");
+            return String.valueOf(text).contains("copy me") ? String.valueOf(text) : null;
+        })));
+        Object copied = UiThread.call(() -> view.browser().evaluate(
+            "term.selectAll(); var d = new DataTransfer();"
+            + "document.querySelector('.xterm').dispatchEvent(new ClipboardEvent('copy', { clipboardData: d, bubbles: true, cancelable: true }));"
+            + "return d.getData('text/plain');"));
+        assertTrue(String.valueOf(copied).contains("copy me ┌──┐"), "a copy of the selected screen holds the text on it: '" + copied + "'");
+    }
+
+    /** Ledger 28k-A13c-6: the view is made larger and smaller by Eclipse's own layout (maximised, then restored), with no resize event raised by the test. */
+    @Test
+    public void aRealChangeOfTheViewsSizeReachesTheSession() throws Exception {
+        assertTrue(Await.until(() -> session.columns > 0 && session.rows > 0), "the page is ready");
+        int before = -1;
+        for (int same = 0, tries = 0; same < 3 && tries < 50; tries++) {
+            Thread.sleep(200);
+            int now = session.columns * 1000 + session.rows;
+            same = now == before ? same + 1 : 0;
+            before = now;
+        }
+        final int settled = before;
+        IWorkbenchPage page = UiThread.call(() -> PlatformUI.getWorkbench().getWorkbenchWindows()[0].getActivePage());
+        org.eclipse.ui.IViewReference reference = UiThread.call(() -> page.findViewReference(TerminalView.ID));
+        UiThread.call(() -> {
+            page.setPartState(reference, IWorkbenchPage.STATE_MAXIMIZED);
+            return null;
+        });
+        try {
+            assertTrue(Await.until(() -> session.columns * 1000 + session.rows != settled),
+                "maximising the view changed the size the session was told, from " + settled + " to " + (session.columns * 1000 + session.rows));
+        } finally {
+            UiThread.call(() -> {
+                page.setPartState(reference, IWorkbenchPage.STATE_RESTORED);
+                return null;
+            });
+        }
+        assertTrue(Await.until(() -> session.columns * 1000 + session.rows == settled),
+            "restoring the view told the session its first size again (" + settled + "): " + session.columns + "x" + session.rows);
+    }
+
     @Test
     public void whatTheSessionWritesAppearsInThePageBoxLinesIncluded() throws Exception {
         assertTrue(Await.until(() -> session.columns > 0), "the page is ready");
@@ -166,6 +270,34 @@ public class TerminalPageTest {
             return String.valueOf(text).contains("hello ┌──┐ box") ? String.valueOf(text) : null;
         })));
         assertTrue(rows.contains("hello ┌──┐ box"), rows);
+    }
+
+    /** Pictures of the terminal as the person sees it, with a prompt, a listing, colours and box lines on it, for the ux seat and for the person to look at. */
+    @Test
+    public void theTerminalIsRenderedForTheUxCheck() throws Exception {
+        assertTrue(Await.until(() -> session.columns > 0), "the page is ready");
+        session.say("\u001b[32mharald@laptop\u001b[0m:\u001b[34m~/work/shop\u001b[0m$ ls -l\r\ntotal 12\r\n-rw-r--r-- 1 harald harald 1204 Oct 29 14:02 pom.xml\r\n"
+            + "drwxr-xr-x 4 harald harald 4096 Oct 29 14:02 \u001b[34msrc\u001b[0m\r\n┌─────────────┐\r\n│ box lines ✓ │ ███ ░░░\r\n└─────────────┘\r\n"
+            + "\u001b[32mharald@laptop\u001b[0m:\u001b[34m~/work/shop\u001b[0m$ ");
+        Await.found("the sample on the screen", () -> Optional.ofNullable(UiThread.call(() -> {
+            Object text = view.browser().evaluate("return document.querySelector('.xterm-rows') ? document.querySelector('.xterm-rows').innerText : '';");
+            return String.valueOf(text).contains("box lines") ? String.valueOf(text) : null;
+        })));
+        UxPicture.picture("terminal-in-the-bottom-panel.png");
+        IWorkbenchPage page = UiThread.call(() -> PlatformUI.getWorkbench().getWorkbenchWindows()[0].getActivePage());
+        org.eclipse.ui.IViewReference reference = UiThread.call(() -> page.findViewReference(TerminalView.ID));
+        UiThread.call(() -> {
+            page.setPartState(reference, IWorkbenchPage.STATE_MAXIMIZED);
+            return null;
+        });
+        try {
+            UxPicture.picture("terminal-maximised.png");
+        } finally {
+            UiThread.call(() -> {
+                page.setPartState(reference, IWorkbenchPage.STATE_RESTORED);
+                return null;
+            });
+        }
     }
 
     @Test

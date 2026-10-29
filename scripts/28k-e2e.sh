@@ -413,7 +413,7 @@ for pkg in java rcp; do
     # P13c (plan Stage 13c, spec D7 as ruled by him, 2026-10-28): in this download the jawata terminal, a view whose page is xterm.js: the view
     # opens and its page holds an xterm.js terminal (TerminalViewTest, 1), keys pressed in the page (as key events, and as typed text) reach the
     # session behind it, what the session writes arrives in the page as text, box-drawing characters included, the window size reaches the
-    # session at the start and again when the terminal's area is resized, and closing the view ends it (TerminalPageTest, 6), a shell on a
+    # session at the start and again when the terminal's area is resized, and closing the view ends it (TerminalPageTest, 11: also the font and colours following Eclipse, paste, copy, a real resize and the pictures), a shell on a
     # pseudo-terminal answers typed commands, takes the size, passes UTF-8 and keeps what it printed before anyone listened (PtyShellTest, 4), and the person's real shell, in the real page,
     # runs a typed command and its frame characters come out as bytes (TerminalRealShellTest, 1). A skipped terminal test fails the promise (Skipped: 0),
     # because the shell tests skip themselves on Windows and a skip must not read as a pass. That the frame is DRAWN is shown by the
@@ -423,7 +423,7 @@ for pkg in java rcp; do
     termpty="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.PtyShellTest$' "$tests_out" | head -1)"
     termreal="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.TerminalRealShellTest$' "$tests_out" | head -1)"
     case "$termview|$termpage|$termpty|$termreal" in
-        "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 6, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 4, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*) ok "P13c $pkg: the jawata terminal, an xterm.js page over the person's own shell on a pseudo-terminal: the page holds a terminal, pressed keys reach the shell, its output and box-drawing characters arrive in the page, the size (at the start and when the terminal's area is resized) and the close reach it, and a real shell answers a typed command in the real page (${termview%%,*}; ${termpage%%,*}; ${termpty%%,*}; ${termreal%%,*})" ;;
+        "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 11, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 4, Failures: 0, Errors: 0, Skipped: 0"*"|Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*) ok "P13c $pkg: the jawata terminal, an xterm.js page over the person's own shell on a pseudo-terminal: the page holds a terminal, pressed keys reach the shell, its output and box-drawing characters arrive in the page, the size (at the start and when the terminal's area is resized) and the close reach it, and a real shell answers a typed command in the real page (${termview%%,*}; ${termpage%%,*}; ${termpty%%,*}; ${termreal%%,*})" ;;
         *) fail "P13c $pkg: the jawata terminal tests did not pass in this download (${termview:-view test did not run}; ${termpage:-page test did not run}; ${termpty:-pty test did not run}; ${termreal:-real-shell test did not run})" ;;
     esac
     # P22b (plan Stage 22b, spec D13, the fallback route its first check chose: EGit's commit box has no dependable way to be filled): in this
@@ -434,7 +434,7 @@ for pkg in java rcp; do
     # live half, asking Claude in the Eclipse chat for the draft, is run with the live agent turn of 21.15.
     commitdraft="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.CommitDraftTest$' "$tests_out" | head -1)"
     case "$commitdraft" in
-        "Tests run: 6, Failures: 0, Errors: 0, Skipped: 0"*) ok "P22b $pkg: a draft the agent writes shows in the jawata commit draft view with HEAD unmoved, a draft with AI attribution is refused with its reason by the hook's own cases, the view says how to ask, and the plug-in's classes reference no commit or push (${commitdraft%%,*})" ;;
+        "Tests run: 8, Failures: 0, Errors: 0, Skipped: 0"*) ok "P22b $pkg: a draft the agent writes shows in the jawata commit draft view with HEAD unmoved, a draft with AI attribution is refused with its reason by the hook's own cases, the view says how to ask, and the plug-in's classes reference no commit or push (${commitdraft%%,*})" ;;
         *) fail "P22b $pkg: the commit draft tests did not pass in this download (${commitdraft:-they did not run})" ;;
     esac
     # UX (found by the ux look at the commit draft view, plan Stage 22b): Window > Show View lists the chat, the terminal and the commit draft
@@ -442,7 +442,7 @@ for pkg in java rcp; do
     # shared one category).
     viewgroups="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.ViewCategoriesTest$' "$tests_out" | head -1)"
     case "$viewgroups" in
-        "Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"*) ok "UX $pkg: Window > Show View lists the jawata chat, terminal and commit draft in one group named jawata (${viewgroups%%,*})" ;;
+        "Tests run: 2, Failures: 0, Errors: 0, Skipped: 0"*) ok "UX $pkg: Window > Show View lists the jawata chat, terminal and commit draft in one group named jawata (${viewgroups%%,*})" ;;
         *) fail "UX $pkg: the jawata views are not in one Show View group (${viewgroups:-the test did not run})" ;;
     esac
     # P23 (plan Stage 23, spec D10, his pick of 2026-10-28): in this download the chat is one view that opens where the person chose, in the

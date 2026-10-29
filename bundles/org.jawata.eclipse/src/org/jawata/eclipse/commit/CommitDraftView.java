@@ -5,8 +5,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.util.Map;
 import java.util.Optional;
 
+import org.eclipse.core.commands.ExecutionException;
+import org.eclipse.core.commands.common.NotDefinedException;
+import org.eclipse.core.commands.NotEnabledException;
+import org.eclipse.core.commands.NotHandledException;
+import org.eclipse.core.commands.ParameterizedCommand;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.swt.SWT;
@@ -19,6 +25,9 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.commands.ICommandService;
+import org.eclipse.ui.handlers.IHandlerService;
 import org.eclipse.ui.part.ViewPart;
 
 /**
@@ -39,6 +48,8 @@ public final class CommitDraftView extends ViewPart {
     private Label where;
     private Text text;
     private Button copy;
+    private Button ask;
+    private String askNote = "";
     private String offered = "";
     private String lastRead = "";
     private CommitDraftCheck check;
@@ -51,7 +62,14 @@ public final class CommitDraftView extends ViewPart {
         where.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
         text = new Text(area, SWT.MULTI | SWT.READ_ONLY | SWT.WRAP | SWT.V_SCROLL | SWT.BORDER);
         text.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        copy = new Button(area, SWT.PUSH);
+        Composite buttons = new Composite(area, SWT.NONE);
+        buttons.setLayout(new GridLayout(2, false));
+        buttons.setLayoutData(new GridData(SWT.LEFT, SWT.BOTTOM, false, false));
+        ask = new Button(buttons, SWT.PUSH);
+        ask.setText("Ask the agent");
+        ask.setToolTipText("Asks the agent in the jawata chat to write a commit message for your changes. Nothing is committed: the draft appears here for you to copy.");
+        ask.addListener(SWT.Selection, event -> askTheAgent());
+        copy = new Button(buttons, SWT.PUSH);
         copy.setText("Copy");
         copy.setToolTipText("Copies the draft; paste it into the commit message box of the Git Staging view, then commit there.");
         copy.setLayoutData(new GridData(SWT.LEFT, SWT.BOTTOM, false, false));
@@ -104,10 +122,14 @@ public final class CommitDraftView extends ViewPart {
             Optional<Path> git = firstGitDirectory();
             title = "No draft yet";
             shown = git.isPresent()
-                ? "Ask the agent in the chat:\n\nWrite a commit message for my changes into " + git.get().resolve(DRAFT_FILE)
+                ? "Ask the agent in the chat:\n\n" + request(git.get())
                 : "None of the open projects is in a git repository.";
         }
+        if (!askNote.isEmpty()) {
+            shown = shown + "\n\n" + askNote;
+        }
         offered = accepted;
+        ask.setEnabled(agentCanBeAsked());
         if (!where.getText().equals(title)) {
             where.setText(title);
         }
@@ -133,6 +155,61 @@ public final class CommitDraftView extends ViewPart {
      */
     public boolean copyEnabled() {
         return copy.isEnabled();
+    }
+
+    /** The chat's command that sends a text to the agent; the view names it by id, so the host bundle does not depend on the chat bundle. */
+    static final String ASK_COMMAND = "org.jawata.eclipse.chat.sendPrompt";
+
+    /** The parameter of {@link #ASK_COMMAND} that carries the text. */
+    static final String ASK_TEXT = "org.jawata.eclipse.chat.sendPrompt.text";
+
+    /**
+     * The sentence that asks the agent for a commit message.
+     *
+     * @param git a repository's {@code .git} folder
+     * @return the request, naming the draft file the agent writes
+     */
+    static String request(Path git) {
+        return "Write a commit message for my changes into " + git.resolve(DRAFT_FILE);
+    }
+
+    /** The repository the request is about: the one holding the newest draft, else the first open project's. */
+    private static Optional<Path> askedRepository() {
+        return newestDraft().map(Path::getParent).or(CommitDraftView::firstGitDirectory);
+    }
+
+    /** True when there is a repository to ask about and the chat's command exists, so pressing the button can reach the agent. */
+    private static boolean agentCanBeAsked() {
+        ICommandService commands = PlatformUI.getWorkbench().getService(ICommandService.class);
+        return commands != null && commands.getCommand(ASK_COMMAND).isDefined() && askedRepository().isPresent();
+    }
+
+    /**
+     * What the Ask the agent button does: sends the request for a commit message to the chat, through the chat's command, as if the person
+     * had typed it there. When the chat cannot be reached the reason is shown under the draft. Nothing is committed.
+     */
+    public void askTheAgent() {
+        Optional<Path> git = askedRepository();
+        if (git.isPresent()) {
+            try {
+                ICommandService commands = PlatformUI.getWorkbench().getService(ICommandService.class);
+                IHandlerService handlers = PlatformUI.getWorkbench().getService(IHandlerService.class);
+                handlers.executeCommand(ParameterizedCommand.generateCommand(commands.getCommand(ASK_COMMAND), Map.of(ASK_TEXT, request(git.get()))), null);
+                askNote = "";
+            } catch (ExecutionException | NotDefinedException | NotEnabledException | NotHandledException failed) {
+                askNote = "The chat could not be asked: " + failed.getMessage();
+            }
+            refresh();
+        }
+    }
+
+    /**
+     * Whether the Ask the agent button can be pressed: there is a repository to ask about and the chat's command exists.
+     *
+     * @return true when pressing the button can reach the agent
+     */
+    public boolean askEnabled() {
+        return ask.isEnabled();
     }
 
     private void copyDraft() {

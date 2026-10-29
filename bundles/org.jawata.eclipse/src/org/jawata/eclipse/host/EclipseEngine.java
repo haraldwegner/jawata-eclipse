@@ -6,6 +6,7 @@ import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.preferences.ConfigurationScope;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.jawata.eclipse.java.EclipseJavaBinding;
 import org.jawata.eclipse.java.EclipseJdtService;
@@ -89,7 +90,8 @@ public final class EclipseEngine implements AutoCloseable {
         for (String key : defaultNode.keys()) {
             defaults.put(key, defaultNode.get(key, null));
         }
-        EclipseSettings settings = new EclipseSettings(InstanceScope.INSTANCE.getNode(PLUGIN_ID), defaults, System::getProperty);
+        EclipseSettings settings = new EclipseSettings(InstanceScope.INSTANCE.getNode(PLUGIN_ID), ConfigurationScope.INSTANCE.getNode(PLUGIN_ID),
+            defaults, System::getProperty);
         EclipseDirectories directories = new EclipseDirectories(settings,
             () -> folders.folders().stream().filter(ProjectFolder::open).map(ProjectFolder::path).toList());
         model = new EclipseJdtService(workspace.getRoot(), OPERATION_TIMEOUT_SECONDS);

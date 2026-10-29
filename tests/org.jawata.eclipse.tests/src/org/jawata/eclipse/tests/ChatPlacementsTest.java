@@ -26,11 +26,6 @@ import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceImpl;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.browser.Browser;
-import org.eclipse.swt.graphics.GC;
-import org.eclipse.swt.graphics.Image;
-import org.eclipse.swt.graphics.ImageData;
-import org.eclipse.swt.graphics.ImageLoader;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -137,36 +132,6 @@ public class ChatPlacementsTest {
         });
     }
 
-    /** Saves a picture of the workbench window, as the person sees it, for the ux seat. */
-    private static void picture(String name) throws Exception {
-        Path picture = Path.of(System.getProperty("jawata.ux.dir", System.getProperty("java.io.tmpdir")), name);
-        Files.createDirectories(picture.getParent());
-        UiThread.call(() -> {
-            Shell shell = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell();
-            shell.setSize(1200, 800);
-            shell.layout(true, true);
-            Display display = shell.getDisplay();
-            long until = System.currentTimeMillis() + 1500;
-            while (System.currentTimeMillis() < until) {
-                if (!display.readAndDispatch()) {
-                    display.sleep();
-                }
-            }
-            Rectangle bounds = shell.getBounds();
-            Image image = new Image(display, bounds.width, bounds.height);
-            GC gc = new GC(display);
-            gc.copyArea(image, bounds.x, bounds.y);
-            gc.dispose();
-            ImageLoader loader = new ImageLoader();
-            loader.data = new ImageData[] { image.getImageData() };
-            loader.save(picture.toString(), SWT.IMAGE_PNG);
-            image.dispose();
-            return null;
-        });
-        assertTrue(Files.size(picture) > 0, "a picture was saved at " + picture);
-        System.out.println("jawata-ux picture " + picture);
-    }
-
     private static MPart partOf(ChatView view) {
         return view.getSite().getService(MPart.class);
     }
@@ -220,7 +185,7 @@ public class ChatPlacementsTest {
             awaitChat(browser, "editor area");
             awaitAttach(browser, file);
             assertEquals("yes", UiThread.call(() -> partOf(view).getPersistedState().get(PLACED)), "the saved layout carries the mark of a placed chat");
-            picture("chat-in-the-middle.png");
+            UxPicture.picture("chat-in-the-middle.png");
         } finally {
             Files.deleteIfExists(file);
         }
@@ -238,7 +203,7 @@ public class ChatPlacementsTest {
             awaitAttach(browser, file);
             // Eclipse opens a view where it was last, so a chat an earlier test left in the middle must be sent out to the side panel
             Await.found("the chat outside the editor area", () -> UiThread.call(() -> inTheEditorArea(view)) ? Optional.empty() : Optional.of(true));
-            picture("chat-in-a-side-panel.png");
+            UxPicture.picture("chat-in-a-side-panel.png");
         } finally {
             Files.deleteIfExists(file);
         }

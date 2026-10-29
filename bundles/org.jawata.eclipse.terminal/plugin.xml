@@ -8,6 +8,8 @@
             name="jawata terminal"
             category="org.jawata.eclipse.views"
             class="org.jawata.eclipse.terminal.TerminalView"
-            allowMultiple="false"/>
+            allowMultiple="false">
+         <description>Your own shell in a view, ready as soon as it opens and drawn so box lines, blocks and emoji come out right; it sits beside Eclipse's own Terminal, which draws them wrongly, and leaves it unchanged.</description>
+      </view>
    </extension>
 </plugin>

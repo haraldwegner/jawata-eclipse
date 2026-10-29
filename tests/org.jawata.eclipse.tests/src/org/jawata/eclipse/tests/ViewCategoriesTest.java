@@ -28,4 +28,18 @@ public class ViewCategoriesTest {
             assertTrue(views.contains(expected), expected + " is in the jawata group: " + views);
         }
     }
+
+    /**
+     * The person choosing in Window > Show View reads a sentence before opening a view (ledger 28k-A13c-7 a): without one the jawata terminal
+     * and Eclipse's own Terminal are listed side by side with nothing to tell them apart.
+     */
+    @Test
+    public void everyJawataViewSaysInASentenceWhatItIsFor() {
+        for (String id : new String[] { "org.jawata.eclipse.chat.view", "org.jawata.eclipse.terminal.view", "org.jawata.eclipse.commit.view" }) {
+            String description = UiThread.call(() -> PlatformUI.getWorkbench().getViewRegistry().find(id).getDescription());
+            assertTrue(description != null && description.trim().length() > 30, id + " has a description in Show View: '" + description + "'");
+        }
+        String terminal = UiThread.call(() -> PlatformUI.getWorkbench().getViewRegistry().find("org.jawata.eclipse.terminal.view").getDescription());
+        assertTrue(terminal.contains("Eclipse's own Terminal"), "the terminal's description says how it differs from Eclipse's Terminal: '" + terminal + "'");
+    }
 }
