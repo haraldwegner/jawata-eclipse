@@ -231,6 +231,10 @@ p20() {  # $1 package, $2 eclipse dir, $3 run dir
         out="$(p20_studio "$notes" "$settings" "2,1")"
         if [ $? -eq 0 ]; then ok "P20 $pkg: two Eclipse instances open and one closed: studio answers 2 running, 1 not running, no switch on any, the tray rows are the list's rows ($(echo "$out" | grep -c 'row:') rows)"
         else fail "P20 $pkg: studio's answer is not 2 running, 1 not running: $(echo "$out" | tail -6 | tr '\n' ' ')"; fi
+        # P25 (plan Stage 25, the cross-repository note gate): the same studio test also raises the schema major in a COPY of a real note the
+        # plug-in just wrote, and studio's reader must refuse it (a row marked newer jawata, not running, not read further)
+        if echo "$out" | grep -q 'a copy with the schema raised to major 9 is refused'; then ok "P25 $pkg: a copy of the real note with its schema major raised is refused by studio's reader (newer jawata, not running)"
+        else fail "P25 $pkg: studio did not refuse a copy of the real note with its schema major raised"; fi
     else
         fail "P20 $pkg: the two Eclipse instances did not both write a note within 180 s; consoles: $run/p20-a.out, $run/p20-b.out"
     fi
