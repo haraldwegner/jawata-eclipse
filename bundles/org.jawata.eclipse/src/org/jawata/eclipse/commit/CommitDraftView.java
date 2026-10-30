@@ -169,8 +169,8 @@ public final class CommitDraftView extends ViewPart {
      * @param git a repository's {@code .git} folder
      * @return the request, naming the draft file the agent writes
      */
-    static String request(Path git) {
-        return "Write a commit message for my changes into " + git.resolve(DRAFT_FILE);
+    public static String request(Path git) {
+        return "Write a commit message for my changes into " + git.resolve(DRAFT_FILE) + ". Do not add a Co-Authored-By line or any other mention of an AI.";
     }
 
     /** The repository the request is about: the one holding the newest draft, else the first open project's. */

@@ -196,7 +196,9 @@ public class CommitDraftTest {
                 view.askTheAgent();
                 return null;
             });
-            assertEquals("Write a commit message for my changes into " + draftFile(), chat.received.get(), "the chat was sent the request that names the draft file");
+            assertEquals(CommitDraftView.request(repo.resolve(".git")), chat.received.get(), "the chat was sent the request that names the draft file");
+            assertTrue(chat.received.get().contains(draftFile().toString()), "the request names the draft file: " + chat.received.get());
+            assertTrue(chat.received.get().contains("Do not add a Co-Authored-By line"), "the request tells the agent to leave out AI attribution (the third live run: the agent added one): " + chat.received.get());
         } finally {
             UiThread.call(() -> {
                 PlatformUI.getWorkbench().getService(IHandlerService.class).deactivateHandler(activation);

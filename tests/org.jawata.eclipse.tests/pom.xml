@@ -52,7 +52,7 @@
   </build>
 
   <profiles>
-    <!-- The one live agent turn (LiveTurnTest, plan 21.15) costs tokens and needs a login, so every build leaves it out unless
+    <!-- The live agent turns (LiveTurnTest, plan 21.15, and LiveAskTest, plan 22b) cost tokens and needs a login, so every build leaves it out unless
          -Djawata.live=true is given; only scripts/28k-live-turn.sh gives it. -->
     <profile>
       <id>no-live-turn</id>
@@ -66,6 +66,7 @@
             <configuration>
               <excludes>
                 <exclude>**/LiveTurnTest.java</exclude>
+                <exclude>**/LiveAskTest.java</exclude>
               </excludes>
             </configuration>
           </plugin>

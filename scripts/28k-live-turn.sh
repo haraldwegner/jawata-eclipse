@@ -49,10 +49,10 @@ out="$run/live-turn.out"
 echo "28k-live-turn: one real agent turn, three prompts; output in $out"
 (cd "$here" && JAWATA_LIVE_CONFIG_DIR="$config" JAWATA_LIVE_NPX="$npx" JAWATA_LIVE_MODEL="${JAWATA_LIVE_MODEL:-claude-haiku-5-5}" \
     xvfb-run -a mvn -B verify -pl releng/org.jawata.eclipse.target,bundles/org.jawata.eclipse,bundles/org.jawata.eclipse.chat,bundles/org.jawata.eclipse.terminal,tests/org.jawata.eclipse.tests -am \
-    -Djawata.live=true -Dtest=LiveTurnTest -DfailIfNoSpecifiedTests=false -Dsurefire.failIfNoSpecifiedTests=false \
+    -Djawata.live=true -Dtest="${JAWATA_LIVE_TEST:-LiveTurnTest}" -DfailIfNoSpecifiedTests=false -Dsurefire.failIfNoSpecifiedTests=false \
     -Djawata.download="$eclipse" -Djawata.profile="epp.package.java" -Djawata.product="org.eclipse.epp.package.java.product") > "$out" 2>&1
 rc=$?
-grep -h 'jawata-live-turn' "$out" | head -5
+grep -h 'jawata-live-' "$out" | head -8
 summary="$(grep -E '^Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+$' "$out" | tail -1)"
 if [ "$rc" = 0 ] && echo "$summary" | grep -q '^Tests run: 1, Failures: 0, Errors: 0, Skipped: 0$'; then
     echo "28k-live-turn: PASSED ($summary)"
