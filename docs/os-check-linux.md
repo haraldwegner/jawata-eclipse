@@ -1,8 +1,8 @@
 # os-check on linux
 
-- started: 2026-10-30T15:21:42Z (UTC)
+- started: 2026-10-30T15:50:35Z (UTC)
 - machine: Linux 7.0.9-76070009-generic, x86_64; the run used Xvfb, a virtual screen; the desktop the person sits at: x11
-- plug-in commit: ff0aeb7 (working tree has uncommitted changes)
+- plug-in commit: 5fe7cb0 
 - exit code of scripts/28k-e2e.sh: 0; promises passed: 108; failed: 0
 
 ## What the run said
@@ -73,7 +73,7 @@
   ok    P23 java: the chat view opens in the middle or in a side panel as chosen, loads and takes a command in each, the real first-run question has two buttons that each choose their place and asks once, a chat closed from the middle opens in a side panel when that is now chosen, a chat that carries the saved mark is not moved, an open chat stays, and the saved layout holds the view with its mark (Tests run: 10)
   ok    P23 java: the chat asks its page to reopen the last conversation when the person wants that, keeps the conversation a prompt, load or resume belongs to, and the preference page saves both choices (Tests run: 5)
   ok    D6 java: Eclipse's log in the test run has no rejected registration and no exception from jawata's code
-  ok    P16 java: the engine started with the workbench and wrote its note (eclipse-27ad2e843d3dd363.json)
+  ok    P16 java: the engine started with the workbench and wrote its note (eclipse-17d835dbf1c10860.json)
   ok    P16 java: the note says hostKind eclipse, names this workspace, and carries no key
   ok    P16 java: a client at the note's endpoint with no key lists 44 tools, the same names as the headless golden of engine 4.4.20 (R7)
   ok    P16 java: health_check answers toolCount 44
@@ -84,7 +84,7 @@
   ok    P20 java: after that Eclipse closed, studio still lists its workspace, not running (it remembered it)
   ok    P20 java: two Eclipse instances open and one closed: studio answers 2 running, 1 not running, no switch on any, the tray rows are the list's rows (3 rows)
   ok    P25 java: a copy of the real note with its schema major raised is refused by studio's reader (newer jawata, not running)
-  ok    P24 java: the chat was opened in the middle, the layout Eclipse wrote on exit holds the view and its mark, and after a real restart the chat was on screen without anyone opening it (picture 5 of session 2, 10 s after the start)
+  ok    P24 java: the chat was opened in the middle, the layout Eclipse wrote on exit holds the view and its mark, and after a real restart the chat was on screen without anyone opening it (picture 4 of session 2, 8 s after the start)
   ok    P24 java: the first time the chat was opened the window "Where should the jawata chat open?" was on screen, its first button put the chat in the middle and was kept as placement=editor, and a second opening with the choice stored did not ask again
   ok    P13 rcp: the update site installs (director), org.jawata.eclipse.feature.feature.group is an installed root
   ok    P13 rcp: Eclipse starts in Xvfb, the workbench is ACTIVE; both org.jawata bundles, WikiText's Markdown editor and the Terminal's local shell are resolved
@@ -103,7 +103,7 @@
   ok    P23 rcp: the chat view opens in the middle or in a side panel as chosen, loads and takes a command in each, the real first-run question has two buttons that each choose their place and asks once, a chat closed from the middle opens in a side panel when that is now chosen, a chat that carries the saved mark is not moved, an open chat stays, and the saved layout holds the view with its mark (Tests run: 10)
   ok    P23 rcp: the chat asks its page to reopen the last conversation when the person wants that, keeps the conversation a prompt, load or resume belongs to, and the preference page saves both choices (Tests run: 5)
   ok    D6 rcp: Eclipse's log in the test run has no rejected registration and no exception from jawata's code
-  ok    P16 rcp: the engine started with the workbench and wrote its note (eclipse-a65bb20c282da172.json)
+  ok    P16 rcp: the engine started with the workbench and wrote its note (eclipse-7f03e5426a58b986.json)
   ok    P16 rcp: the note says hostKind eclipse, names this workspace, and carries no key
   ok    P16 rcp: a client at the note's endpoint with no key lists 44 tools, the same names as the headless golden of engine 4.4.20 (R7)
   ok    P16 rcp: health_check answers toolCount 44
@@ -120,7 +120,7 @@
 
 ## Not covered by this run
 
-- After a restart the last conversation reopening (the chat being where it was is P24 above; reopening needs a real agent, plan 21.15).
-- The callouts for D14's fixture and the commit draft with HEAD unchanged (waiting for the signed Amendment 1; stages 13b and 22b).
-- R1 and a chat turn that calls a jawata tool in the real chat (plan 21.15).
-- Windows and macOS: run by Harald.
+- A real agent turn that calls a jawata tool in the real chat, and a real agent answering the commit draft button's request: both are opt-in runs that cost tokens (scripts/28k-live-turn.sh; JAWATA_LIVE_TEST=LiveAskTest for the second), plan 21.15 and 22b; this run does not make them.
+- After a restart the last conversation reopening: the chat being where it was is shown above (P24); reopening a session needs a real agent.
+- The hand-over smoke (a program started by Run for jawata while the agent attaches and reports a variable in the chat): not run; the agent's request for a run has no engine tool yet (path A, home 28h).
+- Windows and macOS: run by Harald, with 28h.
