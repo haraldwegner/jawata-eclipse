@@ -1,0 +1,3 @@
+jawata-dogfood run_tests answered: {"success":true,"data":{"operation":"run_tests","framework":"junit5","projectsTested":1,"project":"org-jawata-mcp-tests","summary":{"total":4,"passed":4,"failed":0,"skipped":0,"timeMs":1023,"evidenceF
+jawata-dogfood run_tests answered: {"success":true,"data":{"operation":"run_tests","framework":"junit5","projectsTested":1,"project":"org-jawata-mcp-tests","summary":{"total":12,"passed":12,"failed":0,"skipped":0,"timeMs":406,"evidence
+jawata-dogfood run_tests answered: {"success":true,"data":{"operation":"run_tests","framework":"junit5","projectsTested":1,"project":"org-jawata-core-tests","summary":{"total":6,"passed":6,"failed":0,"skipped":0,"timeMs":424,"evidenceF

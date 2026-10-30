@@ -40,7 +40,7 @@ Taken 2026-10-30 on jawata-eclipse `main` (the commit that holds `docs/as-built-
 
 **Path A of "Run for jawata" has no production caller in jawata-eclipse.** `HostRuns#run` has two callers: `RunForJawataMenu:51` (path B, the person) and `HostRunsTest:131`. The constant `AGENT`, the list of live programs `running()` and `launchOf` serve the agent asking, and nothing calls them outside tests. The plan's status board already says this for Stage 19: "engine side owed to 28h". So D4's path A is built and tested here, and the engine tool that would ask for it does not exist yet. It is reported as **unproven at the front door**, home 28h, not as done. P19's path-A step in the end-to-end gate calls `HostRuns#run` directly, which proves the run, not the agent's request.
 
-Nothing else is a capability held alive only by its tests.
+Nothing else **in the three plug-in bundles** is a capability held alive only by its tests. This run searched those bundles only. The ledger (`28k-A18-1`) adds one it could not see, in the engine: `WriteMode.TRIAL` and the engine-side `refusal(targets)` that Eclipse's write port implements are called by no production code of the engine, so the plug-in's side of D2's trial mode and its pre-run refusal is built and tested (`EclipseWritesTest`) but not reached; its home is the 28h engine release.
 
 ## The hand-over smoke is not run
 

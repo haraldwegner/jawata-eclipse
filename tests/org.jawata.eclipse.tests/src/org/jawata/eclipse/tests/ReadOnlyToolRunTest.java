@@ -119,7 +119,7 @@ public class ReadOnlyToolRunTest {
     }
 
     /** Every file the engine must not touch, with its content hash: the settings of each project, and the workspace's own. */
-    private static Map<String, String> snapshot(List<IProject> projects) throws Exception {
+    static Map<String, String> snapshot(List<IProject> projects) throws Exception {
         Map<String, String> files = new TreeMap<>();
         for (IProject project : projects) {
             Path root = project.getLocation().toFile().toPath();

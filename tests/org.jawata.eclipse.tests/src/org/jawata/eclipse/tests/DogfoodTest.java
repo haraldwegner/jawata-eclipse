@@ -95,6 +95,8 @@ public class DogfoodTest {
             }
         });
 
+        // spec D2: a full tool run leaves every project file and workspace setting file as Eclipse had it (the one write, a rename, is undone)
+        Map<String, String> settingsBefore = ReadOnlyToolRunTest.snapshot(projects);
         try {
             probeEveryTool(report, repo);
             refactorAndUndo(report, repo);
@@ -106,6 +108,7 @@ public class DogfoodTest {
         missing.removeAll(report.toolsAsked());
         assertTrue(missing.isEmpty(), "tools the dogfood never asked: " + missing);
         assertTrue(report.brokenAnswers().isEmpty(), "answers that show a broken engine, not a refusal: " + report.brokenAnswers());
+        assertEquals(settingsBefore, ReadOnlyToolRunTest.snapshot(projects), "the run of all 44 tools left every project and settings file as it was");
     }
 
     private static Map<String, Object> args(Object... keysAndValues) {

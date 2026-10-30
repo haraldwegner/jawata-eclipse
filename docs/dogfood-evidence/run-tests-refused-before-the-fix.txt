@@ -1,0 +1,3 @@
+jawata-dogfood run_tests failed/refused: {"success":false,"error":{"code":"INVALID_PARAMETER","message":"Invalid parameter 'project': Neither jawata.tools.dir nor jawata.dist.root is set — the distribution's tools/ folder cannot be located. 
+jawata-dogfood run_tests failed/refused: {"success":false,"error":{"code":"INVALID_PARAMETER","message":"Invalid parameter 'project': Neither jawata.tools.dir nor jawata.dist.root is set — the distribution's tools/ folder cannot be located. 
+jawata-dogfood run_tests failed/refused: {"success":false,"error":{"code":"INVALID_PARAMETER","message":"Invalid parameter 'project': Neither jawata.tools.dir nor jawata.dist.root is set — the distribution's tools/ folder cannot be located. 
