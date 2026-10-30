@@ -18,7 +18,9 @@ asset="jawata-v${version}-linux-x64.tar.gz"
 dir="$here/.work/engine"
 download="$here/.work/engine-download"
 
-if [ -f "$dir/version" ] && [ "$(cat "$dir/version")" = "$version" ] && [ "$(ls "$dir/plugins" 2>/dev/null | wc -l)" -gt 0 ]; then
+tools="$here/bundles/org.jawata.eclipse/tools"   # the release's tools/ folder (the test runner, JUnit's console launcher, JaCoCo's agent, PIT), shipped inside the plug-in
+if [ -f "$dir/version" ] && [ "$(cat "$dir/version")" = "$version" ] && [ "$(ls "$dir/plugins" 2>/dev/null | wc -l)" -gt 0 ] \
+    && [ "$(ls "$tools" 2>/dev/null | wc -l)" -gt 0 ]; then
     echo "engine $version already fetched ($(ls "$dir/plugins" | wc -l) bundles in $dir/plugins)"
     exit 0
 fi
@@ -53,5 +55,11 @@ for id in $ids; do
     done
     [ -n "$found" ] || { echo "the release $version has no bundle $id" >&2; exit 1; }
 done
+# The engine's run_tests, coverage and mutation tools start their runner from the dist's tools/ folder (setting jawata.tools.dir). The headless
+# engine finds it beside its own bundles; inside Eclipse nothing does, so the plug-in ships the same folder and points the setting at it
+# (found 2026-10-30 by the Stage 26 dogfood: run_tests was refused in Eclipse for want of it).
+dist_tools="$(find "$download/unpacked" -type d -name tools | head -1)"
+[ -n "$dist_tools" ] && ls "$dist_tools"/*.jar > /dev/null 2>&1 || { echo "no tools folder with jars in $asset" >&2; exit 1; }
+rm -rf "$tools" && mkdir -p "$tools" && cp "$dist_tools"/*.jar "$tools/"
 echo "$version" > "$dir/version"
 echo "engine $version fetched: $(ls "$dir/plugins" | wc -l) bundles in $dir/plugins (archive sha256 $have, matches GitHub's digest)"

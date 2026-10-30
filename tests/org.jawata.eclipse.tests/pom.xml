@@ -67,6 +67,7 @@
               <excludes>
                 <exclude>**/LiveTurnTest.java</exclude>
                 <exclude>**/LiveAskTest.java</exclude>
+                <exclude>**/DogfoodTest.java</exclude>
               </excludes>
             </configuration>
           </plugin>

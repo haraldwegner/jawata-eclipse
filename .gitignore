@@ -3,3 +3,4 @@ target/
 *.log
 .polyglot.*
 bundles/org.jawata.eclipse.chat/page/
+bundles/org.jawata.eclipse/tools/

@@ -42,6 +42,10 @@ Taken 2026-10-30 on jawata-eclipse `main` (the commit that holds `docs/as-built-
 
 Nothing else is a capability held alive only by its tests.
 
+## The hand-over smoke is not run
+
+The plan's hand-over smoke asks for a bug reproduced in an app started by "Run for jawata" while the agent attaches and reports a variable's value in the chat. It needs the agent to ask for the run (path A), and that request has no engine tool yet, so it cannot be run: **unproven, home 28h.** What exists instead: the run itself is proven by `HostRunsTest` and promise P19, and an agent turn that calls the engine's tools in the real chat was run live on 2026-10-29 (`scripts/28k-live-turn.sh`, three prompts, health_check, search_symbols and rename_symbol completed).
+
 ## What this run did not read
 
 - The engine (D1), the update site and installs (D11) and the `jawata-chat` rows (D12): another repository's code or a build artifact. Stage 11's audit covers the engine.
