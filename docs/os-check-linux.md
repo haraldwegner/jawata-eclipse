@@ -1,8 +1,8 @@
 # os-check on linux
 
-- started: 2026-10-30T15:50:35Z (UTC)
+- started: 2026-10-30T19:06:03Z (UTC)
 - machine: Linux 7.0.9-76070009-generic, x86_64; the run used Xvfb, a virtual screen; the desktop the person sits at: x11
-- plug-in commit: 5fe7cb0 
+- plug-in commit: 1e1efc7 
 - exit code of scripts/28k-e2e.sh: 0; promises passed: 108; failed: 0
 
 ## What the run said
@@ -19,7 +19,7 @@
   ok    P4 refactoring plan -> apply_plan (2 steps) -> undo_plan: ComposeMethodTargets.java changed, then restored byte for byte
   ok    P5 -Djawata.backups.depth=3 passed at start takes effect: experience(kind=restore) answers depth 3, not the default 10
   ok    P5 a second start on the taken port exits 13 with the golden text
-  ok    P5 a deaf listener under the built dist ended the process with status 70 after 85s, and said why
+  ok    P5 a deaf listener under the built dist ended the process with status 70 after 86s, and said why
   ok    P6 with no language bound the engine says it is loading: status 'Loading project...'
   ok    P6 only the tools that name no language are published: 10 of 44, no search_symbols
   ok    P7 the resident jar holds the application class
@@ -59,7 +59,7 @@
   ok    P13 java: the update site installs (director), org.jawata.eclipse.feature.feature.group is an installed root
   ok    P13 java: Eclipse starts in Xvfb, the workbench is ACTIVE; both org.jawata bundles, WikiText's Markdown editor and the Terminal's local shell are resolved
   ok    P15 java: in that started Eclipse the eight engine bundles and libraries (spi, core, mcp, catalogue, H2, Jackson x3) are resolved on its own JDT, LTK and JaCoCo
-  ok    D6/D7 java: the PDE tests ran inside this download (Tests run: 177, Failures: 0, Errors: 0, Skipped: 2): a .md opens in jawata's editor with source and a preview showing every table, the Terminal runs bash
+  ok    D6/D7 java: the PDE tests ran inside this download (Tests run: 180, Failures: 0, Errors: 0, Skipped: 2): a .md opens in jawata's editor with source and a preview showing every table, the Terminal runs bash
   ok    D2 java: the read-only run's Maven, Gradle and plug-in fixtures had their real natures in this download (natures present here: m2e=true, buildship=true, pde=false)
   ok    P17 java: the preference page shows every setting of the engine but the three launcher ones and leaves their stored values alone, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (Tests run: 6; the three proving tests are in the report and passed)
   ok    P18 java: a rename is one Undo step and one Undo restores it, a trial is not on the undo history, unsaved editor text is refused by name and untouched, write tools leave the configuration alone (Tests run: 6)
@@ -84,12 +84,12 @@
   ok    P20 java: after that Eclipse closed, studio still lists its workspace, not running (it remembered it)
   ok    P20 java: two Eclipse instances open and one closed: studio answers 2 running, 1 not running, no switch on any, the tray rows are the list's rows (3 rows)
   ok    P25 java: a copy of the real note with its schema major raised is refused by studio's reader (newer jawata, not running)
-  ok    P24 java: the chat was opened in the middle, the layout Eclipse wrote on exit holds the view and its mark, and after a real restart the chat was on screen without anyone opening it (picture 4 of session 2, 8 s after the start)
+  ok    P24 java: the chat was opened in the middle, the layout Eclipse wrote on exit holds the view and its mark, and after a real restart the chat was on screen without anyone opening it (picture 5 of session 2, 10 s after the start)
   ok    P24 java: the first time the chat was opened the window "Where should the jawata chat open?" was on screen, its first button put the chat in the middle and was kept as placement=editor, and a second opening with the choice stored did not ask again
   ok    P13 rcp: the update site installs (director), org.jawata.eclipse.feature.feature.group is an installed root
   ok    P13 rcp: Eclipse starts in Xvfb, the workbench is ACTIVE; both org.jawata bundles, WikiText's Markdown editor and the Terminal's local shell are resolved
   ok    P15 rcp: in that started Eclipse the eight engine bundles and libraries (spi, core, mcp, catalogue, H2, Jackson x3) are resolved on its own JDT, LTK and JaCoCo
-  ok    D6/D7 rcp: the PDE tests ran inside this download (Tests run: 177, Failures: 0, Errors: 0, Skipped: 2): a .md opens in jawata's editor with source and a preview showing every table, the Terminal runs bash
+  ok    D6/D7 rcp: the PDE tests ran inside this download (Tests run: 180, Failures: 0, Errors: 0, Skipped: 2): a .md opens in jawata's editor with source and a preview showing every table, the Terminal runs bash
   ok    D2 rcp: the read-only run's Maven, Gradle and plug-in fixtures had their real natures in this download (natures present here: m2e=true, buildship=true, pde=true)
   ok    P17 rcp: the preference page shows every setting of the engine but the three launcher ones and leaves their stored values alone, and a value saved on it changes a tool answer for a client with no key, on a page that scrolls (Tests run: 6; the three proving tests are in the report and passed)
   ok    P18 rcp: a rename is one Undo step and one Undo restores it, a trial is not on the undo history, unsaved editor text is refused by name and untouched, write tools leave the configuration alone (Tests run: 6)
