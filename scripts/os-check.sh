@@ -46,7 +46,7 @@ desktop="${XDG_SESSION_TYPE:-none (virtual screen only)}"
     echo
     echo "- started: $started (UTC)"
     echo "- machine: $(uname -sr), $(uname -m); the run used Xvfb, a virtual screen; the desktop the person sits at: $desktop"
-    echo "- plug-in commit: $(git -C "$here" rev-parse --short HEAD) $(git -C "$here" diff --quiet || echo '(working tree has uncommitted changes)')"
+    echo "- plug-in commit: $(git -C "$here" rev-parse --short HEAD) $(git -C "$here" diff --quiet -- . ':(exclude)docs/os-check-*.md' || echo '(working tree has uncommitted changes)')"
     echo "- exit code of scripts/28k-e2e.sh: $status; promises passed: $passed; failed: $failed"
     [ -n "$tests" ] && echo "- the last PDE test total printed: $tests"
     echo
@@ -58,10 +58,10 @@ desktop="${XDG_SESSION_TYPE:-none (virtual screen only)}"
     echo
     echo "## Not covered by this run"
     echo
-    echo "- After a restart the last conversation reopening (the chat being where it was is P24 above; reopening needs a real agent, plan 21.15)."
-    echo "- The callouts for D14's fixture and the commit draft with HEAD unchanged (waiting for the signed Amendment 1; stages 13b and 22b)."
-    echo "- R1 and a chat turn that calls a jawata tool in the real chat (plan 21.15)."
-    echo "- Windows and macOS: run by Harald."
+    echo "- A real agent turn that calls a jawata tool in the real chat, and a real agent answering the commit draft button's request: both are opt-in runs that cost tokens (scripts/28k-live-turn.sh; JAWATA_LIVE_TEST=LiveAskTest for the second), plan 21.15 and 22b; this run does not make them."
+    echo "- After a restart the last conversation reopening: the chat being where it was is shown above (P24); reopening a session needs a real agent."
+    echo "- The hand-over smoke (a program started by Run for jawata while the agent attaches and reports a variable in the chat): not run; the agent's request for a run has no engine tool yet (path A, home 28h)."
+    echo "- Windows and macOS: run by Harald, with 28h."
 } > "$out"
 echo "os-check: written to $out"
 [ "$status" = 0 ] && [ "$failed" = 0 ]
