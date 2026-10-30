@@ -41,11 +41,10 @@ there, against the spec's D4 sentence *"Tests run through jawata's runner for ga
 `tools/` folder into the plug-in bundle (`bundles/org.jawata.eclipse/tools/`, ignored by git like the chat page), the bundle includes it, and
 `EnginePreferenceInitializer` puts the jars into the plug-in's state area (`BundledTools`) and answers `jawata.tools.dir` with that folder.
 Evidence: the same three calls refused before and passed after the rebuilt site was installed; `EngineToolsTest` (two tests: the setting names a
-folder holding the runner and JUnit's launcher byte for byte; a damaged jar is put back) ran in the full build, 184 tests, 0 failures, 2 skipped
-(182 before). The cost is about 6.9 MB of jars in the plug-in (6.25 MB in the update site's jar). The engine is unchanged. The fix is kept in every build by
+folder holding the runner and JUnit's launcher byte for byte; a damaged jar is put back) ran in the full build of the working tree (184 tests; the fresh clone's count is 180, 177 before the fix and the three new tests). The cost is about 6.9 MB of jars in the plug-in (6.25 MB in the update site's jar). The engine is unchanged. The fix is kept in every build by
 `RunTestsInEclipseTest` (a JUnit class of a fixture project is run through `run_tests` inside Eclipse and must pass), which was run red with the
-plug-in's tools folder empty and green with it back. The 108-promise gate (`docs/os-check-linux.md`) is stamped at commit 5fe7cb0 and was re-run
-on the commit that holds the fix; see its own stamp.
+plug-in's tools folder empty and green with it back. The 108-promise gate was re-run from a fresh clone of all four repositories on commit 1e1efc7 (the fix and its tests): 108 passed, 0 failed, and
+`EngineToolsTest` and `RunTestsInEclipseTest` passed inside both installed downloads (`docs/os-check-linux.md`); the default build ran 180 tests, 0 failed, 2 skipped by design.
 
 **F2 (a harness lesson, no change to the product): a rename inside a project Eclipse has not built is refused with "Found potential matches".**
 In the first runs the projects had no Java builder (the nature was set before the project was opened, so Eclipse did not configure it) and
