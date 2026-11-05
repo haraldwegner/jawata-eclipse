@@ -32,7 +32,8 @@ public final class EclipseWorkspace implements HostWorkspace {
                 folders.add(new ProjectFolder(project.getName(), Path.of(location.toOSString()), project.isOpen()));
             }
         }
-        return folders;
+        // a snapshot the engine cannot change the workspace through (the Stage 8 host-workspace contract, run against this port by plan 25a.1)
+        return List.copyOf(folders);
     }
 
     @Override

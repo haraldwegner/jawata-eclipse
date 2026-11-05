@@ -19,8 +19,11 @@ dir="$here/.work/engine"
 download="$here/.work/engine-download"
 
 tools="$here/bundles/org.jawata.eclipse/tools"   # the release's tools/ folder (the test runner, JUnit's console launcher, JaCoCo's agent, PIT), shipped inside the plug-in
+# The release's test-support jar, which holds the engine's Stage 8 contract tests and the note fixtures (plan 25a.1): the plug-in's test bundle
+# carries it on its own class path, so the contracts the engine's own hosts pass are run against EclipseHost here, from the same release tag.
+contracts="$here/tests/org.jawata.eclipse.tests/lib/jawata-engine-contracts.jar"
 if [ -f "$dir/version" ] && [ "$(cat "$dir/version")" = "$version" ] && [ "$(ls "$dir/plugins" 2>/dev/null | wc -l)" -gt 0 ] \
-    && [ "$(ls "$tools" 2>/dev/null | wc -l)" -gt 0 ]; then
+    && [ "$(ls "$tools" 2>/dev/null | wc -l)" -gt 0 ] && [ -f "$contracts" ]; then
     echo "engine $version already fetched ($(ls "$dir/plugins" | wc -l) bundles in $dir/plugins)"
     exit 0
 fi
@@ -61,5 +64,8 @@ done
 dist_tools="$(find "$download/unpacked" -type d -name tools | head -1)"
 [ -n "$dist_tools" ] && ls "$dist_tools"/*.jar > /dev/null 2>&1 || { echo "no tools folder with jars in $asset" >&2; exit 1; }
 rm -rf "$tools" && mkdir -p "$tools" && cp "$dist_tools"/*.jar "$tools/"
+support="$(find "$download/unpacked" -type f -name "org.jawata.mcp.tests-${version}.jar" | head -1)"
+[ -n "$support" ] || { echo "no org.jawata.mcp.tests-${version}.jar (the engine's contract tests) in $asset" >&2; exit 1; }
+mkdir -p "$(dirname "$contracts")" && cp "$support" "$contracts"
 echo "$version" > "$dir/version"
 echo "engine $version fetched: $(ls "$dir/plugins" | wc -l) bundles in $dir/plugins (archive sha256 $have, matches GitHub's digest)"
