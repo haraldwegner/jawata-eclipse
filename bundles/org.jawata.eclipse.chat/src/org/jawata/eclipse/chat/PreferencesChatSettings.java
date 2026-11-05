@@ -12,6 +12,7 @@ import java.util.Optional;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
+import org.jawata.eclipse.access.EngineAddress;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.service.prefs.BackingStoreException;
@@ -60,7 +61,8 @@ public final class PreferencesChatSettings implements ChatSettings {
         List<String> command = new ArrayList<>();
         String program = agent.path("command").asText("").trim();
         if (program.isEmpty()) {
-            return command;
+            // no agent of the person's own: jawata's agent, reached through the engine inside this Eclipse (plan 25a.4), with nothing to set up
+            return EngineAddress.agentCommand().orElse(command);
         }
         command.add(program);
         agent.path("args").forEach(argument -> command.add(argument.asText()));

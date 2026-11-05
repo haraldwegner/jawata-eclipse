@@ -22,7 +22,9 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.PlatformUI;
+import org.jawata.eclipse.access.EngineAddress;
 import org.jawata.eclipse.chat.ChatPreferencePage;
+import org.jawata.eclipse.chat.ChatSettings;
 import org.jawata.eclipse.chat.PreferencesChatSettings;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -60,7 +62,8 @@ public class ChatSetupTest {
         assertEquals(Path.of("/some/where"), settings.workingFolder());
 
         node.put(PreferencesChatSettings.AGENT, "");
-        assertEquals(List.of(), settings.agentCommand(), "no agent set means no command");
+        assertEquals(EngineAddress.agentCommand().orElse(List.of()), settings.agentCommand(),
+            "no agent of the person's own means jawata's agent, and no command only while the engine's listener is not up (plan 25a.4)");
     }
 
     @Test
@@ -124,7 +127,40 @@ public class ChatSetupTest {
     @Test
     public void withNoAgentSetTheChatsOwnQuestionNamesWhereToSetOneAndOpensIt() throws Exception {
         RecordingDialogs dialogs = new RecordingDialogs();
-        try (HostTestPage page = new HostTestPage(new PreferencesChatSettings(), dialogs)) {
+        // no agent at all: the person has set none and jawata's own cannot be reached (the engine's listener is down, or this build carries no bridge)
+        ChatSettings preferences = new PreferencesChatSettings();
+        ChatSettings none = new ChatSettings() {
+            @Override
+            public List<String> agentCommand() {
+                return List.of();
+            }
+
+            @Override
+            public Map<String, String> agentEnvironment() {
+                return Map.of();
+            }
+
+            @Override
+            public Path workingFolder() {
+                return preferences.workingFolder();
+            }
+
+            @Override
+            public String agentSetup() {
+                return preferences.agentSetup();
+            }
+
+            @Override
+            public Runnable onChange(Runnable listener) {
+                return preferences.onChange(listener);
+            }
+
+            @Override
+            public String clientVersion() {
+                return preferences.clientVersion();
+            }
+        };
+        try (HostTestPage page = new HostTestPage(none, dialogs)) {
             page.run("window.connectWithoutAgent();");
             page.waitForCall("connected");
         }

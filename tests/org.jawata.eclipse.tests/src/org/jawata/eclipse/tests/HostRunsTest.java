@@ -205,6 +205,32 @@ public class HostRunsTest {
         assertTrue(McpClient.text(attached).contains("sessionId"), McpClient.text(attached));
     }
 
+    /**
+     * Plan Stage 25a, step 25a.3, the half that can be shown today: the hand-over smoke from the attach on. A bug is reproduced in the
+     * program (here its counter), the agent attaches by pid, stops the program at the line and reports the variable's value. What is
+     * not shown is the agent ASKING for the run (path A): the engine release 4.5.0 has no tool that hands a run to this host.
+     */
+    @Test
+    public void anAgentThatAttachesToTheProgramReadsTheValueOfAVariableAtABreakpoint() throws Exception {
+        McpClient agent = agent();
+        JawataRun run = startForJawata(HostRuns.AGENT);
+        String attached = debugText(agent, "{\"action\":\"attach\",\"pid\":" + run.pid() + "}");
+        java.util.regex.Matcher id = java.util.regex.Pattern.compile("\"sessionId\"\\s*:\\s*\"([^\"]+)\"").matcher(attached);
+        assertTrue(id.find(), "the attach answers a session: " + attached);
+        String session = id.group(1);
+        String set = debugText(agent, "{\"action\":\"breakpoint_set\",\"sessionId\":\"" + session + "\",\"kind\":\"line\",\"className\":\"p.Spin\",\"line\":8}");
+        assertFalse(set.contains("\"success\":false"), "the breakpoint is set on the line after the count: " + set);
+
+        String hit = debugText(agent, "{\"action\":\"wait\",\"sessionId\":\"" + session + "\",\"timeoutMillis\":20000}");
+        java.util.regex.Matcher thread = java.util.regex.Pattern.compile("\"threadId\"\\s*:\\s*(\\d+)").matcher(hit);
+        assertTrue(thread.find(), "the program stopped at the breakpoint: " + hit);
+        String value = debugText(agent, "{\"action\":\"evaluate\",\"sessionId\":\"" + session + "\",\"threadId\":" + thread.group(1) + ",\"expression\":\"ticks\"}");
+
+        assertTrue(value.matches("(?s).*\"(value|result)\"\\s*:\\s*\"?[1-9][0-9]*\"?.*"),
+            "the agent reads the counter at the stop, a number above zero: " + value);
+        debugText(agent, "{\"action\":\"detach\",\"sessionId\":\"" + session + "\"}");
+    }
+
     @Test
     public void whenThePersonStartsEclipsesDebugTheAgentsSessionEndsAndItDoesNotAttachUntilThePersonIsDone() throws Exception {
         McpClient agent = agent();

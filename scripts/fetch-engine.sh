@@ -22,8 +22,11 @@ tools="$here/bundles/org.jawata.eclipse/tools"   # the release's tools/ folder (
 # The release's test-support jar, which holds the engine's Stage 8 contract tests and the note fixtures (plan 25a.1): the plug-in's test bundle
 # carries it on its own class path, so the contracts the engine's own hosts pass are run against EclipseHost here, from the same release tag.
 contracts="$here/tests/org.jawata.eclipse.tests/lib/jawata-engine-contracts.jar"
+# The release's bridge program (jawata.jar, 22 KB: it holds no agent logic and starts no framework). The chat in Eclipse starts it as
+# `java -jar jawata.jar --acp --url <the engine's listener>`, which carries the chat's lines to the engine's agent face (plan 25a.4).
+agent="$here/bundles/org.jawata.eclipse/agent/jawata.jar"
 if [ -f "$dir/version" ] && [ "$(cat "$dir/version")" = "$version" ] && [ "$(ls "$dir/plugins" 2>/dev/null | wc -l)" -gt 0 ] \
-    && [ "$(ls "$tools" 2>/dev/null | wc -l)" -gt 0 ] && [ -f "$contracts" ]; then
+    && [ "$(ls "$tools" 2>/dev/null | wc -l)" -gt 0 ] && [ -f "$contracts" ] && [ -f "$agent" ]; then
     echo "engine $version already fetched ($(ls "$dir/plugins" | wc -l) bundles in $dir/plugins)"
     exit 0
 fi
@@ -67,5 +70,8 @@ rm -rf "$tools" && mkdir -p "$tools" && cp "$dist_tools"/*.jar "$tools/"
 support="$(find "$download/unpacked" -type f -name "org.jawata.mcp.tests-${version}.jar" | head -1)"
 [ -n "$support" ] || { echo "no org.jawata.mcp.tests-${version}.jar (the engine's contract tests) in $asset" >&2; exit 1; }
 mkdir -p "$(dirname "$contracts")" && cp "$support" "$contracts"
+bridge="$(find "$download/unpacked" -maxdepth 2 -type f -name jawata.jar | head -1)"
+[ -n "$bridge" ] || { echo "no jawata.jar (the --acp bridge) in $asset" >&2; exit 1; }
+mkdir -p "$(dirname "$agent")" && cp "$bridge" "$agent"
 echo "$version" > "$dir/version"
 echo "engine $version fetched: $(ls "$dir/plugins" | wc -l) bundles in $dir/plugins (archive sha256 $have, matches GitHub's digest)"

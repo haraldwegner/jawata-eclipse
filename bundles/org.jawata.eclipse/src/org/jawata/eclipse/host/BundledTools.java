@@ -36,7 +36,20 @@ final class BundledTools {
      * @throws IOException when a jar cannot be written
      */
     static Optional<Path> installedAt(Bundle bundle, Path target) throws IOException {
-        Enumeration<URL> entries = bundle.findEntries(ENTRY, "*.jar", false);
+        return installedAt(bundle, ENTRY, target);
+    }
+
+    /**
+     * The same for another folder of the plug-in (the agent's bridge jar, plan 25a.4).
+     *
+     * @param bundle the plug-in carrying the folder
+     * @param folder  the folder of the plug-in whose jars are written
+     * @param target the folder on disk to put the jars in
+     * @return the folder, or empty when this build of the plug-in carries none
+     * @throws IOException when a jar cannot be written
+     */
+    static Optional<Path> installedAt(Bundle bundle, String folder, Path target) throws IOException {
+        Enumeration<URL> entries = bundle.findEntries(folder, "*.jar", false);
         if (entries == null || !entries.hasMoreElements()) {
             return Optional.empty();
         }

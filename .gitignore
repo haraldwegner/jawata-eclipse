@@ -5,3 +5,4 @@ target/
 bundles/org.jawata.eclipse.chat/page/
 bundles/org.jawata.eclipse/tools/
 tests/org.jawata.eclipse.tests/lib/
+bundles/org.jawata.eclipse/agent/
