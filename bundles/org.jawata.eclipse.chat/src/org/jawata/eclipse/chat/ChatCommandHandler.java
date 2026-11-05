@@ -56,6 +56,7 @@ public final class ChatCommandHandler extends AbstractHandler implements IExecut
         commands.put("setMode", List.of("modeId"));
         commands.put("setModel", List.of("modelId"));
         commands.put("attachFile", List.of("path"));
+        commands.put("setAutonomy", List.of("value"));
         return Map.copyOf(commands);
     }
 

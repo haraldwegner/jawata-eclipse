@@ -80,6 +80,25 @@ public class ChatCommandsTest {
         assertEquals(declared().size(), chatCommands, "plugin.xml defines no chat command the handler does not know");
     }
 
+    /**
+     * Plan Stage 25a, step 25a.5 (28i's change request CR1, the autocontinue button): the command the button and a key send is bound in the
+     * relay under the id the editors share, with the one optional argument the page reads (on or off; without it the page asks for the
+     * opposite of what the agent reports). The id is written out here, not derived, so a rename shows as red.
+     */
+    @Test
+    public void theAutocontinueCommandIsBoundInTheRelayUnderItsId() {
+        String id = "org.jawata.eclipse.chat.setAutonomy";
+        assertEquals(id, ChatCommandHandler.commandId("setAutonomy"), "the id every editor's autocontinue command carries");
+        assertEquals(List.of("value"), ChatCommandHandler.PAGE_COMMANDS.get("setAutonomy"), "the relay lists the command with its one argument");
+        Command command = PlatformUI.getWorkbench().getService(ICommandService.class).getCommand(id);
+        assertTrue(command.isDefined(), "the command " + id + " is defined");
+        long handled = Arrays.stream(Platform.getExtensionRegistry().getConfigurationElementsFor("org.eclipse.ui.handlers"))
+            .filter(handler -> id.equals(handler.getAttribute("commandId")))
+            .filter(handler -> "org.jawata.eclipse.chat.ChatCommandHandler:setAutonomy".equals(handler.getAttribute("class")))
+            .count();
+        assertEquals(1, handled, "the chat's handler runs " + id);
+    }
+
     @Test
     public void openingTheChatHasAKey() {
         long keys = Arrays.stream(Platform.getExtensionRegistry().getConfigurationElementsFor("org.eclipse.ui.bindings"))

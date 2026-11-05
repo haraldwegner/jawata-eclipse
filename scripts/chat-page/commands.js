@@ -29,6 +29,17 @@ export function chatCommands(chat, fail = () => {}) {
     setMode: (args) => controller.handle({ type: 'setMode', modeId: args.modeId }),
     setModel: (args) => controller.handle({ type: 'setModel', modelId: args.modelId }),
     attachFile: (args) => { controller.attachFile(args.path); },
+    /**
+     * The autocontinue button's intent (28i CR1): the grant is one plain ACP select option `autonomy` with the values `off` and `on`, so the
+     * command sets that option, as the button does. Given 'on' or 'off' it sets that; given nothing it asks for the opposite of what the
+     * agent last reported. It is the agent that says whether the grant is armed: this only asks. (chat.ref's chat-core has no exported
+     * constant for the id yet, so it is written out here.)
+     */
+    setAutonomy: (args) => {
+      const reported = controller.snapshot().session?.configOptions?.find((option) => option.id === 'autonomy');
+      const value = args.value === 'on' || args.value === 'off' ? args.value : reported?.currentValue === 'on' ? 'off' : 'on';
+      return controller.handle({ type: 'setConfigOption', configId: 'autonomy', value });
+    },
   };
 }
 
