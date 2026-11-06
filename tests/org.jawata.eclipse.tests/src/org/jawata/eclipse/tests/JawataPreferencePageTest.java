@@ -60,14 +60,55 @@ public class JawataPreferencePageTest {
             List<String> launcherOnes = List.of("jawata.dist.root", "jawata.workspace.root", "jawata.embed.symptoms");
             List<String> registry = SettingKeys.all().stream().map(SettingKey::name).toList();
             assertTrue(registry.containsAll(launcherOnes), "the engine still has the three, so their names here are right: " + registry);
-            List<String> offered = registry.stream().filter(k -> !launcherOnes.contains(k)).toList();
-            assertEquals(offered, opened.page().shownKeys(), "the page shows the engine's settings but those three, in the engine's order");
+            // the engine now says who each setting is for; the three are exactly the ones it does not mark for the person
+            assertEquals(launcherOnes, SettingKeys.all().stream().filter(k -> k.audience() != SettingKey.Audience.PERSON).map(SettingKey::name).toList(),
+                "the engine marks the launcher's two and the experiment as not for the person, and no other");
+            List<String> offered = SettingKeys.all().stream().filter(k -> k.audience() == SettingKey.Audience.PERSON).map(SettingKey::name).toList();
+            assertEquals(registry.stream().filter(k -> !launcherOnes.contains(k)).toList(), offered, "so the settings meant for the person are all but those three");
+            assertEquals(offered, opened.page().shownKeys(), "and the page shows exactly the settings meant for the person, in the engine's order");
             assertTrue(offered.stream().allMatch(k -> opened.page().fieldFor(k) != null && !opened.page().fieldFor(k).isDisposed()),
                 "and each of them has a live field to type into, not only a name in a list");
             assertTrue(launcherOnes.stream().allMatch(k -> opened.page().fieldFor(k) == null), "and the three have no field");
         } finally {
             onUserInterface(opened.shell()::dispose);
         }
+    }
+
+    /**
+     * Plan 25a.6 (ledger 28k-A17-1, -2): who a setting is for is the engine's word and not a list kept here, so a setting the engine marks for
+     * the person is offered even if the old hard-coded list names it, and one it marks for the launcher or as an experiment is not, whatever
+     * its name.
+     */
+    @Test
+    public void whatIsOfferedFollowsTheAudienceTheEngineGivesEachSettingAndNotItsName() {
+        SettingKey named = new SettingKey("jawata.dist.root", "none", "A folder the person now chooses", null, SettingKey.Audience.PERSON);
+        SettingKey newLauncher = new SettingKey("jawata.some.new.launcher.setting", "none", "Set by the launcher", null, SettingKey.Audience.LAUNCHER);
+        SettingKey newExperiment = new SettingKey("jawata.some.new.arm", "false", "A measurement arm", null, SettingKey.Audience.EXPERIMENT);
+        SettingKey ordinary = new SettingKey("jawata.some.new.person.setting", "1", "How many", null, SettingKey.Audience.PERSON);
+
+        List<SettingKey> offered = JawataPreferencePage.offeredToThePerson(List.of(named, newLauncher, newExperiment, ordinary));
+
+        assertEquals(List.of(named, ordinary), offered, "the person's settings in the engine's order, whatever they are called");
+    }
+
+    /**
+     * Plan 25a.6 (ledger 28k-A17-1, -2): the words a setting is explained in are put together for this host from the key's own parts. Eclipse
+     * reads no environment variable for a setting, so the sentence about one is not on the page, and a meaning that is one clause ends in a full
+     * stop before the default is named.
+     */
+    @Test
+    public void aSettingIsExplainedInEclipsesWordsWithNoEnvironmentVariableAndAFullStopBeforeTheDefault() {
+        SettingKey clause = new SettingKey("jawata.some.setting", "30", "How many seconds an answer may take", "JAWATA_SOME_SECONDS", SettingKey.Audience.PERSON);
+        SettingKey sentence = new SettingKey("jawata.other.setting", "off", "Whether it is on.", null, SettingKey.Audience.PERSON);
+
+        String explained = JawataPreferencePage.explanationOf(clause, "30", false, null);
+
+        assertEquals("How many seconds an answer may take. Default: 30.", explained, "the engine's meaning for a host with no environment, then the default");
+        assertFalse(explained.contains("JAWATA_SOME_SECONDS") || explained.contains("environment variable"), "no variable is named: " + explained);
+        assertEquals("Whether it is on. Default: off.", JawataPreferencePage.explanationOf(sentence, "off", false, null), "a sentence is not given a second stop");
+        assertTrue(JawataPreferencePage.explanationOf(clause, "30", true, "7").endsWith(
+            " Kept once for this Eclipse installation: every workspace of it uses the value typed here. Eclipse was started with -Djawata.some.setting=7, "
+                + "which applies until a value is typed here."), "the two host sentences are Eclipse's own and follow");
     }
 
     /** A setting the page does not offer keeps its stored value when the page is saved: saving the page must not wipe what it never showed. */

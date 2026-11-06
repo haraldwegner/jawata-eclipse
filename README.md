@@ -5,7 +5,11 @@ for the sprint documents. Installed from the update site this repository builds 
 
 The engine is never built here. `engine.version` names one released jawata-mcp; run `scripts/fetch-engine.sh` first (needs curl, jq,
 tar) and it downloads that release, checks it against GitHub's digest and copies the engine's bundles to `.work/engine/plugins`,
-where the target platform reads them. To move to a newer engine, change `engine.version` and run it again. The build fails at the
+where the target platform reads them. To move to a newer engine, change `engine.version` and run it again. To build and test against
+an engine that is ahead of its last release, build the engine's dist and run `JAWATA_ENGINE_DIST=<the dist folder> scripts/fetch-engine.sh`
+(the folder with `bundles/`, `tools/`, `test-bundles/` and `jawata.jar`): nothing is downloaded and no digest is checked, because none
+exists for a local build, and the script says so; a run without the variable goes back to the release. `scripts/test-fetch-engine.sh`
+tests both routes. The build fails at the
 engine feature ("could not be found") if the script has not run; on Windows run it from Git Bash. The engine's own JaCoCo is not
 shipped: the plug-in requires JaCoCo from Eclipse's release repository, so installing needs that repository to be reachable and
 the engine runs on the JaCoCo version Eclipse offers.

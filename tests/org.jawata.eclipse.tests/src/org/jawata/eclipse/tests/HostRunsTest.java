@@ -207,8 +207,8 @@ public class HostRunsTest {
 
     /**
      * Plan Stage 25a, step 25a.3, the half that can be shown today: the hand-over smoke from the attach on. A bug is reproduced in the
-     * program (here its counter), the agent attaches by pid, stops the program at the line and reports the variable's value. What is
-     * not shown is the agent ASKING for the run (path A): the engine release 4.5.0 has no tool that hands a run to this host.
+     * program (here its counter), the agent attaches by pid, stops the program at the line and reports the variable's value. The agent
+     * ASKING for the run (path A) is the test that follows, which needs the engine built from main.
      */
     @Test
     public void anAgentThatAttachesToTheProgramReadsTheValueOfAVariableAtABreakpoint() throws Exception {
@@ -229,6 +229,83 @@ public class HostRunsTest {
         assertTrue(value.matches("(?s).*\"(value|result)\"\\s*:\\s*\"?[1-9][0-9]*\"?.*"),
             "the agent reads the counter at the stop, a number above zero: " + value);
         debugText(agent, "{\"action\":\"detach\",\"sessionId\":\"" + session + "\"}");
+    }
+
+    /**
+     * Plan Stage 25a, step 25a.3, path A, whole: the agent ASKS for the run. {@code debug launch configuration=} reaches this host through
+     * the engine's HostRuns port, the host starts the person's configuration (the program is not held), the engine attaches by the pid the
+     * host answers with, and the agent reads the counter at a breakpoint. The engine here is the one built from main (scripts/fetch-engine.sh
+     * with JAWATA_ENGINE_DIST), since the 4.5.0 release has no such tool.
+     */
+    @Test
+    public void anAgentThatAsksForARunByConfigurationNameGetsItStartedAttachedAndReadsAVariableAtABreakpoint() throws Exception {
+        byte[] before = savedBytes();
+        McpClient agent = agent();
+
+        String launched = debugText(agent, "{\"action\":\"launch\",\"configuration\":\"" + CONFIGURATION + "\"}");
+
+        assertFalse(launched.contains("\"success\":false"), "the engine had the host run the configuration: " + launched);
+        java.util.regex.Matcher id = java.util.regex.Pattern.compile("\"sessionId\"\\s*:\\s*\"([^\"]+)\"").matcher(launched);
+        assertTrue(id.find(), "and attached: the answer holds a session: " + launched);
+        String session = id.group(1);
+        List<JawataRun> running = HostRuns.shared().running();
+        assertEquals(1, running.size(), "the program the host started is the one running: " + running);
+        assertEquals(HostRuns.AGENT, running.get(0).startedBy(), "and it records that the agent asked");
+        assertEquals(CONFIGURATION, running.get(0).configuration());
+        assertTrue(launched.contains(Long.toString(running.get(0).pid())), "the engine attached by the pid the host answered with: " + launched);
+        assertEquals(ILaunchManager.RUN_MODE, launchFor(running.get(0)).getLaunchMode(), "in Run mode, so Eclipse's debugger never connects");
+
+        String set = debugText(agent, "{\"action\":\"breakpoint_set\",\"sessionId\":\"" + session + "\",\"kind\":\"line\",\"className\":\"p.Spin\",\"line\":8}");
+        assertFalse(set.contains("\"success\":false"), "the breakpoint is set on the line after the count: " + set);
+        String hit = debugText(agent, "{\"action\":\"wait\",\"sessionId\":\"" + session + "\",\"timeoutMillis\":20000}");
+        java.util.regex.Matcher thread = java.util.regex.Pattern.compile("\"threadId\"\\s*:\\s*(\\d+)").matcher(hit);
+        assertTrue(thread.find(), "the program stopped at the breakpoint: " + hit);
+        String value = debugText(agent, "{\"action\":\"evaluate\",\"sessionId\":\"" + session + "\",\"threadId\":" + thread.group(1) + ",\"expression\":\"ticks\"}");
+        assertTrue(value.matches("(?s).*\"(value|result)\"\\s*:\\s*\"?[1-9][0-9]*\"?.*"),
+            "the agent reads the counter at the stop, a number above zero: " + value);
+        debugText(agent, "{\"action\":\"detach\",\"sessionId\":\"" + session + "\"}");
+        assertTrue(java.util.Arrays.equals(before, savedBytes()), "and the person's saved configuration is byte for byte what it was");
+    }
+
+    @Test
+    public void askingForAConfigurationThatDoesNotExistIsAnErrorThatNamesItAndStartsNothing() throws Exception {
+        McpClient agent = agent();
+
+        String answer = debugText(agent, "{\"action\":\"launch\",\"configuration\":\"no-such-configuration\"}");
+
+        assertTrue(answer.contains("no-such-configuration"), "the refusal names what was asked for: " + answer);
+        assertTrue(answer.contains("HOST_RUN_FAILED"), "and the engine reports the host's refusal as such: " + answer);
+        assertTrue(HostRuns.shared().running().isEmpty(), "and no program was started");
+    }
+
+    @Test
+    public void discoverLabelsAProgramThePersonStartedWithRunForJawataWithItsConfigurationAndWhoStartedIt() throws Exception {
+        McpClient agent = agent();
+        JawataRun run = startForJawata(HostRuns.PERSON);
+
+        String found = debugText(agent, "{\"action\":\"discover\"}");
+
+        assertTrue(found.contains("startedForJawata"), "discover marks the program as started for jawata: " + found);
+        assertTrue(found.contains(Long.toString(run.pid())) && found.contains(CONFIGURATION), "with its pid and the person's configuration: " + found);
+        assertTrue(found.contains("started by the person for jawata"), "and says that the person started it: " + found);
+    }
+
+    @Test
+    public void theHostAnswersTheEnginesPortWithTheProgramsItStartedAndRefusesWhatItCannotRun() throws Exception {
+        EclipseEngine engine = Await.found("the workbench started the engine", EngineStartup::running);
+        org.jawata.spi.host.HostRuns port = engine.engine().orElseThrow().host().instruments().runs()
+            .orElseThrow(() -> new AssertionError("the host offers the engine no runs"));
+
+        org.jawata.spi.host.HostRuns.RunForJawata run = port.runForJawata(CONFIGURATION, new org.eclipse.core.runtime.NullProgressMonitor());
+
+        assertTrue(run.pid() > 0, "the port answers the process id the debugger attaches by: " + run);
+        assertEquals(CONFIGURATION, run.configuration());
+        assertEquals(org.jawata.spi.host.HostRuns.AGENT, run.startedBy(), "a run the engine asked for is the agent's");
+        assertEquals(List.of(run), port.runningForJawata(), "and it is listed as running");
+        org.eclipse.core.runtime.CoreException refused = org.junit.jupiter.api.Assertions.assertThrows(org.eclipse.core.runtime.CoreException.class,
+            () -> port.runForJawata("no-such-configuration", new org.eclipse.core.runtime.NullProgressMonitor()));
+        assertTrue(refused.getStatus().getMessage().contains("no-such-configuration"), "an unknown configuration is refused by name: " + refused.getStatus().getMessage());
+        assertEquals(1, port.runningForJawata().size(), "and the refusal started nothing");
     }
 
     @Test

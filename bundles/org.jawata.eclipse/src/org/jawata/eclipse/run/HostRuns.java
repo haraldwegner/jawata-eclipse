@@ -23,7 +23,10 @@ import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
  * Eclipse. Every run is a background job the person sees in the status bar and can cancel, and the pid it answers with is all the
  * debugger needs to attach. Path A is the agent asking for it, path B the person choosing "Run for jawata" in the Run menu.
  */
-public final class HostRuns {
+public final class HostRuns implements org.jawata.spi.host.HostRuns {
+
+    /** How long the engine's ask waits for a program to run before it gives up; the start itself takes a second or two. */
+    private static final long ASK_TIMEOUT_SECONDS = 120;
 
     /** The debug agent, on loopback, on a port the JVM chooses, never holding the program at its start (contract §6.1 rule 2). */
     public static final String AGENT_OPTION = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:0";
@@ -136,6 +139,62 @@ public final class HostRuns {
         job.setUser(false);
         job.schedule();
         return started;
+    }
+
+    /**
+     * The engine's ask (contract §4.2, §6.1, path A): starts the person's configuration for jawata as {@link #AGENT} and answers once the
+     * program runs, or fails with why it could not. A cancelled ask stops the program it started.
+     */
+    @Override
+    public RunForJawata runForJawata(String configuration, IProgressMonitor monitor) throws CoreException {
+        CompletableFuture<JawataRun> started = run(configuration, AGENT);
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(ASK_TIMEOUT_SECONDS);
+        try {
+            while (true) {
+                if (monitor != null && monitor.isCanceled()) {
+                    started.whenComplete((run, failed) -> {
+                        if (run != null) {
+                            launchOf(run).ifPresent(launch -> {
+                                try {
+                                    launch.terminate();
+                                } catch (CoreException unstoppable) {
+                                    DebugPlugin.log(unstoppable);
+                                }
+                            });
+                        }
+                    });
+                    throw new CoreException(Status.CANCEL_STATUS);
+                }
+                if (System.nanoTime() > deadline) {
+                    throw new CoreException(new Status(IStatus.ERROR, pluginId, "Running " + configuration + " for jawata took longer than "
+                        + ASK_TIMEOUT_SECONDS + " seconds."));
+                }
+                try {
+                    JawataRun run = started.get(200, java.util.concurrent.TimeUnit.MILLISECONDS);
+                    return new RunForJawata(run.configuration(), run.pid(), "", run.startedBy());
+                } catch (java.util.concurrent.TimeoutException notYet) {
+                    // still starting: look at the monitor and the clock again
+                }
+            }
+        } catch (java.util.concurrent.ExecutionException failed) {
+            Throwable cause = failed.getCause();
+            if (cause instanceof CoreException core) {
+                throw core;
+            }
+            throw new CoreException(new Status(IStatus.ERROR, pluginId, "Could not run " + configuration + " for jawata: " + cause.getMessage(), cause));
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new CoreException(Status.CANCEL_STATUS);
+        }
+    }
+
+    @Override
+    public List<RunForJawata> runningForJawata() {
+        List<RunForJawata> runs = new ArrayList<>();
+        for (JawataRun run : running()) {
+            runs.add(new RunForJawata(run.configuration(), run.pid(), "", run.startedBy()));
+        }
+        return runs;
     }
 
     /** @return the programs started for jawata that are still running */

@@ -39,6 +39,9 @@ public final class EclipseWrites implements WorkspaceWrites {
 
     private final String pluginId;
 
+    /** The answers of the trials performed here that nobody has kept yet; weak, so a trial the gate took back is not held for ever. */
+    private final java.util.Map<Applied, Change> trials = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
     /** @param pluginId the plug-in a refusal's status belongs to */
     public EclipseWrites(String pluginId) {
         this.pluginId = pluginId;
@@ -60,7 +63,41 @@ public final class EclipseWrites implements WorkspaceWrites {
             operation.setUndoManager(RefactoringCore.getUndoManager(), change.getName());
         }
         operation.run(monitor);
-        return new Applied(operation.getUndoChange(), operation.getValidationStatus());
+        Applied applied = new Applied(operation.getUndoChange(), operation.getValidationStatus());
+        if (mode == WriteMode.TRIAL) {
+            // remembered only until it is kept: the engine hands this very answer back if its gate accepts the change (plan 25a.6, ledger A18-1)
+            trials.put(applied, change);
+        }
+        return applied;
+    }
+
+    /**
+     * The gate accepted a change this host performed as a trial: it becomes one step on Edit &gt; Undo now, under {@code name}, which is
+     * what an accepted change is. It is added once however often it is asked (the first call takes it out of the trials), and only if it
+     * was performed here as a trial: an accepted change is on the history already, and a trial the gate took back is never asked about.
+     */
+    @Override
+    public boolean keep(Applied applied, String name) {
+        if (applied == null || applied.undo() == null) {
+            return false;
+        }
+        Change performed = trials.remove(applied);
+        if (performed == null) {
+            return true;
+        }
+        // The same four steps PerformChangeOperation takes for a change it performs with an undo manager: the manager opens an operation for
+        // the performed change, closes it, and only then takes the undo change into that operation (addUndo does nothing with none open).
+        org.eclipse.ltk.core.refactoring.IUndoManager manager = RefactoringCore.getUndoManager();
+        try {
+            manager.aboutToPerformChange(performed);
+            manager.changePerformed(performed, true);
+            applied.undo().initializeValidationData(new org.eclipse.core.runtime.NullProgressMonitor());
+            manager.addUndo(name, applied.undo());
+            return true;
+        } catch (RuntimeException unkeepable) {
+            trials.put(applied, performed);
+            return false;
+        }
     }
 
     @Override
