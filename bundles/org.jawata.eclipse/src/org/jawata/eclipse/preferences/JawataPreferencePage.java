@@ -25,8 +25,8 @@ import org.jawata.mcp.engine.SettingKeys;
 import org.osgi.service.prefs.BackingStoreException;
 
 /**
- * Every setting the engine reads that a person can usefully change, on one of Eclipse's preference pages (plan Stage 17, spec D5; three
- * are not offered, see {@code NOT_OFFERED}). The page is built from the engine's own list of settings, {@link SettingKeys#all()}, so a
+ * Every setting the engine reads that a person can usefully change, on one of Eclipse's preference pages (plan Stage 17, spec D5; the
+ * ones the engine does not mark for the person are not offered, see {@link #offeredToThePerson}). The page is built from the engine's own list of settings, {@link SettingKeys#all()}, so a
  * setting the engine gains is on the page without anyone remembering to add it. A field left empty is a setting that is not set, and the default shown
  * with it applies; what is typed here is stored as the plug-in's Eclipse preference of the same name, which is where the engine
  * reads it. There is no key or password anywhere in it, because the connection inside Eclipse has none.
@@ -34,13 +34,6 @@ import org.osgi.service.prefs.BackingStoreException;
 public final class JawataPreferencePage extends PreferencePage implements IWorkbenchPreferencePage {
 
     private static final String PLUGIN_ID = "org.jawata.eclipse";
-
-    /**
-     * Settings the engine reads that a person has no use for here (his ruling of 2026-10-28): the launcher sets the distribution and workspace
-     * roots, and the symptom embedding is an experiment. They keep working as before, from the launch properties or a stored value, and a
-     * stored value is left alone when the page is saved; they are only not offered.
-     */
-    private static final java.util.Set<String> NOT_OFFERED = java.util.Set.of("jawata.dist.root", "jawata.workspace.root", "jawata.embed.symptoms");
 
     private final Map<String, Text> fields = new LinkedHashMap<>();
 
@@ -59,21 +52,9 @@ public final class JawataPreferencePage extends PreferencePage implements IWorkb
         IEclipsePreferences chosen = InstanceScope.INSTANCE.getNode(PLUGIN_ID);
         IEclipsePreferences shared = ConfigurationScope.INSTANCE.getNode(PLUGIN_ID);
         IEclipsePreferences defaults = DefaultScope.INSTANCE.getNode(PLUGIN_ID);
-        for (SettingKey key : SettingKeys.all()) {
-            if (NOT_OFFERED.contains(key.name())) {
-                continue;
-            }
+        for (SettingKey key : offeredToThePerson(SettingKeys.all())) {
             boolean machineWide = EclipseSettings.MACHINE_WIDE.contains(key.name());
-            String standing = defaults.get(key.name(), key.fallback());
-            String explanation = key.meaning() + " Default: " + standing + ".";
-            if (machineWide) {
-                explanation += " Kept once for this Eclipse installation: every workspace of it uses the value typed here.";
-            }
-            String launched = System.getProperty(key.name());
-            if (launched != null) {
-                // what applies when this field is empty is not the default: Eclipse was started with a value for it
-                explanation += " Eclipse was started with -D" + key.name() + "=" + launched + ", which applies until a value is typed here.";
-            }
+            String explanation = explanationOf(key, defaults.get(key.name(), key.fallback()), machineWide, System.getProperty(key.name()));
             Label name = new Label(form, SWT.NONE);
             name.setText(key.name());
             name.setToolTipText(explanation);
@@ -94,6 +75,37 @@ public final class JawataPreferencePage extends PreferencePage implements IWorkb
         scroll.setExpandVertical(true);
         scroll.setMinSize(form.computeSize(SWT.DEFAULT, SWT.DEFAULT));
         return scroll;
+    }
+
+    /**
+     * The settings meant for the person, in the engine's order: the engine says who each is for ({@link SettingKey#audience()}), so a setting
+     * it gains is offered or kept off the page by its own word and not by a list of names kept here. The launcher's settings (the distribution
+     * and workspace roots) and the experiment (symptom embedding) are not offered (his ruling of 2026-10-28); they keep working as before,
+     * from the launch properties or a stored value, and a stored value is left alone when the page is saved.
+     */
+    public static List<SettingKey> offeredToThePerson(List<SettingKey> keys) {
+        return keys.stream().filter(key -> key.audience() == SettingKey.Audience.PERSON).toList();
+    }
+
+    /**
+     * What a setting is explained with on the page, in this host's words: the engine's meaning put together for a host that reads no
+     * environment variable ({@link SettingKey#meaningFor(boolean)}), the default, and the two things only Eclipse knows.
+     *
+     * @param key         the setting
+     * @param standing    the default that applies, as Eclipse's default preferences say it
+     * @param machineWide whether the value is kept once for the installation
+     * @param launched    the value Eclipse was started with for it (-D), or null
+     */
+    public static String explanationOf(SettingKey key, String standing, boolean machineWide, String launched) {
+        String explanation = key.meaningFor(false) + " Default: " + standing + ".";
+        if (machineWide) {
+            explanation += " Kept once for this Eclipse installation: every workspace of it uses the value typed here.";
+        }
+        if (launched != null) {
+            // what applies when this field is empty is not the default: Eclipse was started with a value for it
+            explanation += " Eclipse was started with -D" + key.name() + "=" + launched + ", which applies until a value is typed here.";
+        }
+        return explanation;
     }
 
     /** The settings the page shows, by name, in the order they are shown. */

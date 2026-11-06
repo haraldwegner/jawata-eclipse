@@ -98,7 +98,8 @@ public final class EclipseEngine implements AutoCloseable {
         reconciler = new EclipseReconciler(workspace);
         // The person wins the turn to debug: Eclipse's Debug starting ends the agent's sessions (contract A3-2).
         debugTurn = new org.jawata.eclipse.run.EclipseDebugTurn(org.eclipse.debug.core.DebugPlugin.getDefault().getLaunchManager(), log, PLUGIN_ID);
-        org.jawata.spi.host.Instruments instruments = () -> debugTurn;
+        org.jawata.spi.host.Instruments instruments = new org.jawata.eclipse.run.EclipseInstruments(debugTurn,
+            org.jawata.eclipse.run.HostRuns.shared());
         EclipseHost host = new EclipseHost(folders, new EclipseEngineLifecycle(log, person, PLUGIN_ID), endpoint, settings, directories,
             new EclipseJavaBinding(new EclipseModelSource(model, PLUGIN_ID)), reconciler, new EclipseWrites(PLUGIN_ID), person, instruments);
         try {

@@ -41,7 +41,7 @@ fail() { echo "  FAIL  $*"; failed=$((failed + 1)); }
 # it was saved during the build, and a tampered copy (JAWATA_SITE, which the red controls build on purpose, is not checked). Having no
 # site at all stops the run on the line above. A branch switch can make the check fire without a change: the cure is the rebuild.
 if [ -z "${JAWATA_SITE:-}" ]; then
-    older="$(find "$here/bundles" "$here/features" "$here/repository" "$here/releng" "$here/pom.xml" "$here/engine.version" "$here/chat.ref" -type f \
+    older="$(find "$here/bundles" "$here/features" "$here/repository" "$here/releng" "$here/pom.xml" "$here/engine.version" "$here/chat.ref" "$work/engine/version" -type f \
         -not -path '*/target/*' -not -path '*/org.jawata.eclipse.chat/page/*' -newer "$site/content.jar" 2>/dev/null | head -3)"
     [ -z "$older" ] || { echo "the update site is older than these sources, so the run would test the previous build:"; echo "$older"; echo "run: xvfb-run -a mvn -B verify"; exit 2; }
 fi
@@ -153,7 +153,9 @@ p16() {  # $1 package, $2 eclipse dir, $3 run dir
         sleep 2
     done
     # the golden of the release the plug-in ships (engine.version), not of whatever the engine checkout has moved on to
-    golden="$(git -C "$engine" show "v$(cat "$here/engine.version"):build/28k-golden-tools.json" | jq -r '[.[].name] | sort | join(" ")')"
+    # (with JAWATA_ENGINE_DIST the engine is a local build of the checkout, so its golden is the checkout's own file)
+    if [ -n "${JAWATA_ENGINE_DIST:-}" ]; then golden="$(jq -r '[.[].name] | sort | join(" ")' "$engine/build/28k-golden-tools.json")"
+    else golden="$(git -C "$engine" show "v$(cat "$here/engine.version"):build/28k-golden-tools.json" | jq -r '[.[].name] | sort | join(" ")')"; fi
     if [ -n "$golden" ] && [ "$names" = "$golden" ]; then
         ok "P16 $pkg: a client at the note's endpoint with no key lists $(echo $names | wc -w) tools, the same names as the headless golden of engine $(cat "$here/engine.version") (R7)"
     else
@@ -258,7 +260,9 @@ bash "$here/scripts/build-chat-page.sh" > "$work/build-chat-page.out" 2>&1 || { 
 . "$here/scripts/lib-bundles.sh"
 # The released dist's files by symbolic name: the same bundle must be the same bytes, not merely some released file.
 declare -A released
-for jar in "$work"/engine-download/unpacked/*/bundles/*.jar; do
+# (with JAWATA_ENGINE_DIST the files are the local dist's, which scripts/fetch-engine.sh took the engine from)
+if [ -n "${JAWATA_ENGINE_DIST:-}" ]; then released_jars=("$JAWATA_ENGINE_DIST"/bundles/*.jar); else released_jars=("$work"/engine-download/unpacked/*/bundles/*.jar); fi
+for jar in "${released_jars[@]}"; do
     [ -f "$jar" ] && released["$(bundle_symbolic_name "$jar")"]="$(sha256sum "$jar" | cut -d' ' -f1)"
 done
 # What the engine feature names is the one list (features/org.jawata.engine.feature/feature.xml): the site must ship exactly those, and the

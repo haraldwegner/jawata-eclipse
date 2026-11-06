@@ -172,6 +172,105 @@ public class EclipseWritesTest {
         }
     }
 
+    /** A trial the way the engine's gate applies a change forward: nothing on the undo history yet, and the answer to hand to keep. */
+    private static WorkspaceWrites.Applied trialRename(EclipseWrites writes, IFile file, String to) throws Exception {
+        int at = text(file).indexOf("hello");
+        TextFileChange trial = new TextFileChange("jawata gate trial", file);
+        trial.setEdit(new ReplaceEdit(at, "hello".length(), to));
+        trial.initializeValidationData(new NullProgressMonitor());
+        return writes.perform(trial, WorkspaceWrites.WriteMode.TRIAL, new NullProgressMonitor());
+    }
+
+    @Test
+    public void aTrialTheGateAcceptsIsKeptAsOneStepOnEditUndoAndOneUndoRestoresIt() throws Exception {
+        IProject project = WorkspaceProjects.java("jawata-keep-");
+        try {
+            IFile file = project.getFile("src/p/Greeter.java");
+            EclipseWrites writes = new EclipseWrites(PLUGIN);
+            int before = undoSteps();
+            WorkspaceWrites.Applied applied = trialRename(writes, file, "hey");
+            assertEquals(before, undoSteps(), "a trial is not on the undo history while the gate judges it");
+
+            assertTrue(writes.keep(applied, "jawata gate trial"), "the host kept it");
+
+            assertEquals(before + 1, undoSteps(), "the accepted change is one step on Edit > Undo");
+            assertEquals("jawata gate trial", HISTORY.getUndoHistory(UNDO)[HISTORY.getUndoHistory(UNDO).length - 1].getLabel(),
+                "under the label the engine gave it");
+            HISTORY.undo(UNDO, new NullProgressMonitor(), null);
+            file.refreshLocal(IFile.DEPTH_ZERO, null);
+            assertTrue(text(file).contains("String hello()"), "one Undo restores the file: " + text(file));
+            assertEquals(before, undoSteps(), "and the step is gone");
+        } finally {
+            WorkspaceProjects.deleteQuietly(project);
+        }
+    }
+
+    @Test
+    public void keepingTheSameTrialTwiceLeavesOneStepNotTwo() throws Exception {
+        IProject project = WorkspaceProjects.java("jawata-keeptwice-");
+        try {
+            IFile file = project.getFile("src/p/Greeter.java");
+            EclipseWrites writes = new EclipseWrites(PLUGIN);
+            int before = undoSteps();
+            WorkspaceWrites.Applied applied = trialRename(writes, file, "hey");
+
+            assertTrue(writes.keep(applied, "jawata gate trial"));
+            assertTrue(writes.keep(applied, "jawata gate trial"), "asking again is not a failure");
+
+            assertEquals(before + 1, undoSteps(), "but the change is on the undo history once: a second step would undo a change already undone");
+            HISTORY.undo(UNDO, new NullProgressMonitor(), null);
+            assertEquals(before, undoSteps(), "so one Undo empties it");
+        } finally {
+            WorkspaceProjects.deleteQuietly(project);
+        }
+    }
+
+    @Test
+    public void aTrialTheGateTakesBackIsNeverOnTheUndoHistory() throws Exception {
+        IProject project = WorkspaceProjects.java("jawata-takenback-");
+        try {
+            IFile file = project.getFile("src/p/Greeter.java");
+            EclipseWrites writes = new EclipseWrites(PLUGIN);
+            int before = undoSteps();
+            WorkspaceWrites.Applied applied = trialRename(writes, file, "hey");
+
+            // what the gate does with a change it refuses: it performs the change's undo, also as a trial, and never calls keep
+            applied.undo().initializeValidationData(new NullProgressMonitor());
+            writes.perform(applied.undo(), WorkspaceWrites.WriteMode.TRIAL, new NullProgressMonitor());
+
+            assertTrue(text(file).contains("String hello()"), "the gate took it back: " + text(file));
+            assertEquals(before, undoSteps(), "neither the change nor its rollback is a step the person made");
+        } finally {
+            WorkspaceProjects.deleteQuietly(project);
+        }
+    }
+
+    @Test
+    public void keepingWhatWasNotAppliedOrWasAlreadyAcceptedAddsNothing() throws Exception {
+        IProject project = WorkspaceProjects.java("jawata-keepnone-");
+        try {
+            IFile file = project.getFile("src/p/Greeter.java");
+            EclipseWrites writes = new EclipseWrites(PLUGIN);
+            int before = undoSteps();
+
+            assertFalse(writes.keep(new WorkspaceWrites.Applied(null, null), "nothing was done"), "a change with no undo cannot be kept");
+            assertFalse(writes.keep(null, "no answer"), "and neither can no answer at all");
+            assertEquals(before, undoSteps(), "and nothing reached the history");
+
+            TextFileChange accepted = new TextFileChange("jawata accepted", file);
+            accepted.setEdit(new ReplaceEdit(text(file).indexOf("hello"), "hello".length(), "hey"));
+            accepted.initializeValidationData(new NullProgressMonitor());
+            WorkspaceWrites.Applied applied = writes.perform(accepted, WorkspaceWrites.WriteMode.ACCEPTED, new NullProgressMonitor());
+            assertEquals(before + 1, undoSteps(), "an accepted change is a step already");
+
+            assertTrue(writes.keep(applied, "jawata accepted"), "keeping it is not a failure");
+            assertEquals(before + 1, undoSteps(), "and does not make a second step for the same change");
+            HISTORY.undo(UNDO, new NullProgressMonitor(), null);
+        } finally {
+            WorkspaceProjects.deleteQuietly(project);
+        }
+    }
+
     @Test
     public void aNonUtf8FileWithNonAsciiTextIsRefusedAndAnAsciiOneIsNot() throws Exception {
         IProject project = WorkspaceProjects.java("jawata-charset-");
