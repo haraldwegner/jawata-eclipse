@@ -1,0 +1,168 @@
+name: Release
+
+# A tag vMAJOR.MINOR.MICRO builds the update site and attaches it, zipped, to a real (not draft) release of this repository:
+#     jawata-eclipse-update-site-<version>.zip   (+ its .sha256)
+# jawata.org/eclipse/ is assembled from those releases by the Pages workflow of haraldwegner/jawata-mcp (.github/workflows/pages.yml): it
+# unpacks every release's zip under /eclipse/<version>/ and lists them in a p2 composite repository, so Eclipse (Help > Install New Software)
+# is given https://jawata.org/eclipse/ once and finds this version and every older one still listed there.
+#
+# A manual run (workflow_dispatch) is a DRY RUN: it builds, tests and checks exactly as a tag run does and publishes NOTHING. The steps that
+# create a release or start another repository's workflow are guarded by startsWith(github.ref, 'refs/tags/') and cannot run from a branch.
+#
+# The build is the README's:  scripts/fetch-engine.sh, scripts/build-chat-page.sh, then  xvfb-run -a mvn -B verify  (Java 21, Maven 3.9;
+# the PDE tests open Eclipse windows on the virtual display). scripts/28k-e2e.sh is NOT run here: it installs the site into clean Eclipse
+# downloads and needs the jawata-mcp checkout built beside this one; it is run by hand before a tag is pushed.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PAGES_DISPATCH_TOKEN: ${{ secrets.JAWATA_PAGES_DISPATCH_TOKEN }}
+      # the chat checkout below: the page script bundles it and the PDE tests play its recorded sessions (ChatCheckout reads this variable)
+      JAWATA_CHAT: ${{ github.workspace }}/jawata-chat
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # The version is the tag's. A dry run uses the version the poms already carry.
+      - name: Version
+        id: v
+        run: |
+          set -euo pipefail
+          pom_version="$(sed -n 's|^  <version>\(.*\)</version>$|\1|p' pom.xml | head -1)"
+          tycho="$(sed -n 's|.*<tycho.version>\(.*\)</tycho.version>.*|\1|p' pom.xml | head -1)"
+          [ -n "$pom_version" ] && [ -n "$tycho" ] || { echo "could not read the version or tycho.version from pom.xml"; exit 1; }
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag="${GITHUB_REF_NAME}"
+            echo "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "the tag $tag is not of the form vMAJOR.MINOR.MICRO"; exit 1; }
+            version="${tag#v}"
+          else
+            tag=""
+            version="${pom_version%-SNAPSHOT}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tycho=$tycho" >> "$GITHUB_OUTPUT"
+          echo "tag='$tag' version=$version tycho=$tycho pom=$pom_version"
+
+      # Poms, MANIFESTs and feature.xml files all say 0.1.0 today; the tag decides what the build is called. The qualifier (the build's
+      # timestamp) is added by Tycho, so the site holds <version>.<qualifier> and a later tag always sorts above an earlier one.
+      - name: Set the tag's version in the build
+        if: steps.v.outputs.tag != ''
+        run: mvn -B -q org.eclipse.tycho:tycho-versions-plugin:${{ steps.v.outputs.tycho }}:set-version -DnewVersion=${{ steps.v.outputs.version }}-SNAPSHOT
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install the virtual display
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+
+      # engine.version names the released engine; the script checks the download against GitHub's digest.
+      - name: Fetch the engine
+        run: scripts/fetch-engine.sh
+
+      - name: Read chat.ref
+        id: chat
+        run: echo "ref=$(tr -d '[:space:]' < chat.ref)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the chat at chat.ref
+        uses: actions/checkout@v5
+        with:
+          repository: haraldwegner/jawata-chat
+          ref: ${{ steps.chat.outputs.ref }}
+          path: jawata-chat
+
+      - name: Build the chat page
+        run: scripts/build-chat-page.sh
+
+      # The tests are part of the build: a red test stops the release before anything is attached.
+      - name: Build and test (xvfb-run -a mvn -B verify)
+        run: xvfb-run -a mvn -B verify
+
+      - name: Check the site has the plug-in's features and plug-ins at the version
+        run: scripts/check-update-site.sh repository/target/repository "${{ steps.v.outputs.version }}"
+
+      - name: Zip the site
+        id: zip
+        run: |
+          set -euo pipefail
+          name="jawata-eclipse-update-site-${{ steps.v.outputs.version }}.zip"
+          mkdir -p out
+          (cd repository/target/repository && zip -qr -X "$GITHUB_WORKSPACE/out/$name" .)
+          (cd out && sha256sum "$name" > "$name.sha256")
+          # the zip must unpack to a p2 repository AT ITS TOP, because the Pages workflow unpacks it as /eclipse/<version>/
+          rm -rf unpacked && mkdir unpacked && unzip -q "out/$name" -d unpacked
+          scripts/check-update-site.sh unpacked "${{ steps.v.outputs.version }}"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          ls -l out
+
+      # A dry run keeps the zip for three days so a person can look at it; it is not a release and nothing reads it.
+      - name: Keep the zip of a dry run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: update-site-dry-run
+          path: out/*
+          retention-days: 3
+
+      - name: Keep the test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            tests/**/target/surefire-reports/**
+            **/target/*.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # TAG-GUARDED: a manual run from a branch can never get here.
+      - name: Create the release (not a draft)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          tag="${{ steps.v.outputs.tag }}"
+          version="${{ steps.v.outputs.version }}"
+          cat > release-notes.md <<EOF
+          jawata for Eclipse $version.
+
+          Install: in Eclipse (2026-09, 4.41) choose Help > Install New Software > Add..., paste https://jawata.org/eclipse/ and install "jawata".
+          Later versions are offered from the same address under Help > Check for Updates. The plug-in is not listed in any marketplace.
+
+          The attached zip is the same update site as a file (Add... > Archive...); jawata.org/eclipse/ is assembled from these releases.
+          EOF
+          gh release create "$tag" "out/${{ steps.zip.outputs.name }}" "out/${{ steps.zip.outputs.name }}.sha256" \
+            --verify-tag --title "jawata for Eclipse $version" --notes-file release-notes.md --latest
+          gh release view "$tag" --json isDraft,isPrerelease,assets \
+            --jq 'if .isDraft or .isPrerelease then error("the release is a draft or a pre-release") else .assets[].name end'
+
+      # OPTIONAL: starts the Pages workflow of jawata-mcp at once. Without the secret that workflow picks the new release up within six hours.
+      # Setting up the secret: see the report of the change that added this file (a fine-grained token with Actions: read and write on
+      # haraldwegner/jawata-mcp only).
+      - name: Start the jawata.org Pages workflow now (optional)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && env.PAGES_DISPATCH_TOKEN != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.JAWATA_PAGES_DISPATCH_TOKEN }}
+        run: gh workflow run pages.yml -R haraldwegner/jawata-mcp --ref main

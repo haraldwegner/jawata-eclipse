@@ -67,8 +67,42 @@ public final class EclipseWrites implements WorkspaceWrites {
         if (mode == WriteMode.TRIAL) {
             // remembered only until it is kept: the engine hands this very answer back if its gate accepts the change (plan 25a.6, ledger A18-1)
             trials.put(applied, change);
+        } else if (mode == WriteMode.UNDO && operation.changeExecuted()) {
+            // the engine took back a change it kept: the step that change left on Edit > Undo is undone now, so it goes (ledger A18-2)
+            settleKeptStep(change);
         }
         return applied;
+    }
+
+    /**
+     * The engine has just performed {@code undoChange}, the undo of a change this host kept, so the step that kept change left on the
+     * person's Edit &gt; Undo is stale: pressing Undo on it would undo what is already undone. The step is the one whose undo change is this
+     * very instance (LTK's operation holds it as its active change once the step is on the history), and only that step is dropped; the
+     * person's other steps stay, which {@code IUndoManager.flush()} would not allow. A change that was never kept is on no step, and
+     * nothing is touched. The take-back itself is not listed: it was performed without an undo manager.
+     */
+    private static void settleKeptStep(Change undoChange) {
+        org.eclipse.core.commands.operations.IOperationHistory history = org.eclipse.core.commands.operations.OperationHistoryFactory.getOperationHistory();
+        for (org.eclipse.core.commands.operations.IUndoableOperation step : history.getUndoHistory(org.eclipse.ui.ide.undo.WorkspaceUndoUtil.getWorkspaceUndoContext())) {
+            if (changeOf(step) == undoChange) {
+                history.replaceOperation(step, new org.eclipse.core.commands.operations.IUndoableOperation[0]);
+                return;
+            }
+        }
+    }
+
+    /**
+     * The change LTK's operation of a step currently holds (for a step on the history: its undo change), or null when the step is not a
+     * change of LTK's. The operation class is LTK-internal and not exported, so it is asked by name; a step it cannot ask is left alone.
+     */
+    private static Change changeOf(org.eclipse.core.commands.operations.IUndoableOperation step) {
+        org.eclipse.core.commands.operations.IUndoableOperation inner = step instanceof org.eclipse.core.commands.operations.TriggeredOperations triggered
+            ? triggered.getTriggeringOperation() : step;
+        try {
+            return inner.getClass().getMethod("getChange").invoke(inner) instanceof Change change ? change : null;
+        } catch (ReflectiveOperationException | RuntimeException notLtksOperation) {
+            return null;
+        }
     }
 
     /**

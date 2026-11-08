@@ -245,6 +245,98 @@ public class EclipseWritesTest {
         }
     }
 
+    /** An edit that is one step on Edit > Undo, performed as the person's own earlier step: a comment on the first line. */
+    private static void earlierStep(EclipseWrites writes, IFile file) throws Exception {
+        TextFileChange earlier = new TextFileChange("jawata earlier step", file);
+        earlier.setEdit(new ReplaceEdit(0, 0, "// earlier step\n"));
+        earlier.initializeValidationData(new NullProgressMonitor());
+        writes.perform(earlier, WorkspaceWrites.WriteMode.ACCEPTED, new NullProgressMonitor());
+    }
+
+    /** What the engine does with a change it kept and then takes back: it performs the change's undo, which it got from the first perform. */
+    private static void engineTakesBack(EclipseWrites writes, WorkspaceWrites.Applied applied) throws Exception {
+        applied.undo().initializeValidationData(new NullProgressMonitor());
+        writes.perform(applied.undo(), WorkspaceWrites.WriteMode.UNDO, new NullProgressMonitor());
+    }
+
+    private static void assertTakenBackLeavesOnlyTheEarlierStep(IFile file, int before, int redoBefore, String why) throws Exception {
+        assertTrue(text(file).contains("String hello()"), why + ": the engine's undo restored the file: " + text(file));
+        assertEquals(before + 1, undoSteps(), why + ": Edit > Undo lists neither the kept step nor the take-back, and the earlier step stays");
+        assertEquals("jawata earlier step", HISTORY.getUndoHistory(UNDO)[HISTORY.getUndoHistory(UNDO).length - 1].getLabel(),
+            why + ": the step on top of Edit > Undo is the person's earlier one, not the stale kept step");
+        assertEquals(redoBefore, HISTORY.getRedoHistory(UNDO).length, why + ": and the take-back left nothing on Edit > Redo");
+        HISTORY.undo(UNDO, new NullProgressMonitor(), null);
+        file.refreshLocal(IFile.DEPTH_ZERO, null);
+        assertTrue(text(file).contains("String hello()") && !text(file).contains("earlier step"),
+            why + ": one Undo undoes the earlier step and nothing else: " + text(file));
+        assertEquals(before, undoSteps(), why + ": and the history is as it was");
+    }
+
+    @Test
+    public void aKeptChangeTheEngineTakesBackLeavesNoStepOnEditUndoAndTheEarlierStepStays() throws Exception {
+        IProject project = WorkspaceProjects.java("jawata-takeback-");
+        try {
+            IFile file = project.getFile("src/p/Greeter.java");
+            EclipseWrites writes = new EclipseWrites(PLUGIN);
+            int before = undoSteps();
+            earlierStep(writes, file);
+            int redoBefore = HISTORY.getRedoHistory(UNDO).length;   // after the earlier step: adding a step empties Redo, whatever an earlier test left there
+
+            // kept as a trial the gate accepted: the way the engine keeps every change it applies
+            WorkspaceWrites.Applied applied = trialRename(writes, file, "hey");
+            assertTrue(writes.keep(applied, "jawata gate trial"), "the host kept it");
+            assertEquals(before + 2, undoSteps(), "the kept change is a second step on Edit > Undo");
+
+            engineTakesBack(writes, applied);
+
+            assertTakenBackLeavesOnlyTheEarlierStep(file, before, redoBefore, "kept as a trial");
+        } finally {
+            WorkspaceProjects.deleteQuietly(project);
+        }
+    }
+
+    @Test
+    public void aChangePerformedAsAcceptedAndTakenBackByTheEngineLeavesNoStepEither() throws Exception {
+        IProject project = WorkspaceProjects.java("jawata-takeback-acc-");
+        try {
+            IFile file = project.getFile("src/p/Greeter.java");
+            EclipseWrites writes = new EclipseWrites(PLUGIN);
+            int before = undoSteps();
+            earlierStep(writes, file);
+            int redoBefore = HISTORY.getRedoHistory(UNDO).length;   // after the earlier step: adding a step empties Redo, whatever an earlier test left there
+            TextFileChange accepted = new TextFileChange("jawata accepted", file);
+            accepted.setEdit(new ReplaceEdit(text(file).indexOf("hello"), "hello".length(), "hey"));
+            accepted.initializeValidationData(new NullProgressMonitor());
+            WorkspaceWrites.Applied applied = writes.perform(accepted, WorkspaceWrites.WriteMode.ACCEPTED, new NullProgressMonitor());
+            assertEquals(before + 2, undoSteps(), "the accepted change is a second step on Edit > Undo");
+
+            engineTakesBack(writes, applied);
+
+            assertTakenBackLeavesOnlyTheEarlierStep(file, before, redoBefore, "performed as accepted");
+        } finally {
+            WorkspaceProjects.deleteQuietly(project);
+        }
+    }
+
+    @Test
+    public void aTakeBackOfAChangeThatWasNeverKeptTouchesNoStep() throws Exception {
+        IProject project = WorkspaceProjects.java("jawata-takeback-none-");
+        try {
+            IFile file = project.getFile("src/p/Greeter.java");
+            EclipseWrites writes = new EclipseWrites(PLUGIN);
+            int before = undoSteps();
+            earlierStep(writes, file);
+            int redoBefore = HISTORY.getRedoHistory(UNDO).length;   // after the earlier step: adding a step empties Redo, whatever an earlier test left there
+            WorkspaceWrites.Applied trial = trialRename(writes, file, "hey");
+
+            engineTakesBack(writes, trial);
+
+            assertTakenBackLeavesOnlyTheEarlierStep(file, before, redoBefore, "never kept");
+        } finally {
+            WorkspaceProjects.deleteQuietly(project);
+        }
+    }
+
     @Test
     public void keepingWhatWasNotAppliedOrWasAlreadyAcceptedAddsNothing() throws Exception {
         IProject project = WorkspaceProjects.java("jawata-keepnone-");

@@ -17,6 +17,11 @@ the engine runs on the JaCoCo version Eclipse offers.
 Build: `xvfb-run -a mvn -B verify` (Java 21, Maven 3.9; the tests open Eclipse windows on the off-screen display Xvfb). `.md` files
 open in jawata's Markdown editor (WikiText's editor, with the specs' tables in the preview); `-Djawata.spec.md=PATH` also opens a
 real spec in the tests.
+Release: pushing a tag `vMAJOR.MINOR.MICRO` runs `.github/workflows/release.yml`, which builds and tests as above (`mvn verify` took 4 minutes 9 seconds
+on the author's machine with the engine and chat page already fetched; a runner also fetches the engine, packs the chat and downloads the target platform), checks the site with
+`scripts/check-update-site.sh repository/target/repository <version>` and attaches `jawata-eclipse-update-site-<version>.zip` to a release.
+jawata.org/eclipse/ is assembled from those releases by the Pages workflow of jawata-mcp, which lists every version still kept there;
+people add `https://jawata.org/eclipse/` once under Help > Install New Software. A manual run of the workflow is a dry run that publishes nothing.
 End-to-end: `scripts/28k-e2e.sh` (needs the update site from the build and the jawata-mcp checkout beside this one).
 After cloning, run `scripts/install-hooks.sh` once.
 
