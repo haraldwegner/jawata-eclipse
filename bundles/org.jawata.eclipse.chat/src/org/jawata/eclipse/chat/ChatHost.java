@@ -81,8 +81,26 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
                         dialogs.error(mismatch);
                     }
                     reopenLastConversation();
+                    chatStarted();
                     yield null;
                 }
+                case "toPanel" -> {
+                    toPanel(op.path("role").asText(), op.path("message"));
+                    yield null;
+                }
+                case "showSide" -> {
+                    showSideView(true);
+                    yield null;
+                }
+                case "hideSide" -> {
+                    showSideView(false);
+                    yield null;
+                }
+                case "chooseFiles" -> {
+                    answer(op.path("ticket").asText(), chosenFiles());
+                    yield null;
+                }
+                case "clipboardPicture" -> clipboardPicture();
                 case "spawn" -> {
                     spawn(op);
                     yield null;
@@ -329,9 +347,133 @@ public final class ChatHost implements AgentRelay.Listener, AutoCloseable {
         }
     }
 
+    /** The views beside the chat that are open, by role. Their pages only show: the core is in the chat's page, reached through the chat's host. */
+    private static final Map<String, ChatPage> PANELS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile ChatHost chat;
+
+    /** A view beside the chat has its page ready: the chat's core starts serving it, now or when the chat starts. */
+    static void panelJoined(String role, ChatPage panel) {
+        PANELS.put(role, panel);
+        ChatHost host = chat;
+        if (host != null) {
+            host.deliver(Map.of("kind", "panelOpen", "role", role));
+        }
+    }
+
+    /** A view beside the chat has closed. */
+    static void panelLeft(String role) {
+        PANELS.remove(role);
+        ChatHost host = chat;
+        if (host != null) {
+            host.deliver(Map.of("kind", "panelClosed", "role", role));
+        }
+    }
+
+    /** What a view beside the chat asked, on its way to the core. */
+    static void panelAsked(String role, JsonNode intent) {
+        ChatHost host = chat;
+        if (host != null) {
+            host.deliver(Map.of("kind", "panelIntent", "role", role, "intent", intent));
+        }
+    }
+
+    /** The chat's page has started: every view already open beside it is joined to it. */
+    private void chatStarted() {
+        chat = this;
+        PANELS.keySet().forEach(role -> deliver(Map.of("kind", "panelOpen", "role", role)));
+    }
+
+    /** What the core tells a view beside the chat. */
+    private void toPanel(String role, JsonNode message) {
+        ChatPage panel = PANELS.get(role);
+        if (panel != null && !panel.isDisposed()) {
+            panel.deliver(json.createObjectNode().put("kind", "view").<com.fasterxml.jackson.databind.node.ObjectNode>set("message", message).toString());
+        }
+    }
+
+    /** Opens or closes the btw view in the right stack. */
+    private void showSideView(boolean show) {
+        org.eclipse.ui.IWorkbenchWindow window = org.eclipse.ui.PlatformUI.getWorkbench().getActiveWorkbenchWindow();
+        org.eclipse.ui.IWorkbenchPage workbench = window == null ? null : window.getActivePage();
+        if (workbench == null) {
+            return;
+        }
+        try {
+            if (show) {
+                workbench.showView(ChatPanelView.BTW_ID);
+            } else {
+                org.eclipse.ui.IViewPart open = workbench.findView(ChatPanelView.BTW_ID);
+                if (open != null) {
+                    workbench.hideView(open);
+                }
+            }
+        } catch (org.eclipse.ui.PartInitException cannotOpen) {
+            log.accept("The btw view could not be opened: " + cannotOpen.getMessage());
+        }
+    }
+
+    /** The picture on the clipboard as a PNG for the agent, or null when the clipboard holds none. */
+    private String clipboardPicture() throws IOException {
+        org.eclipse.swt.dnd.Clipboard clipboard = new org.eclipse.swt.dnd.Clipboard(page.getShell().getDisplay());
+        try {
+            org.eclipse.swt.graphics.ImageData picture = (org.eclipse.swt.graphics.ImageData) clipboard.getContents(org.eclipse.swt.dnd.ImageTransfer.getInstance());
+            if (picture == null) {
+                return null;
+            }
+            org.eclipse.swt.graphics.ImageLoader saver = new org.eclipse.swt.graphics.ImageLoader();
+            saver.data = new org.eclipse.swt.graphics.ImageData[] {picture};
+            java.io.ByteArrayOutputStream png = new java.io.ByteArrayOutputStream();
+            saver.save(png, org.eclipse.swt.SWT.IMAGE_PNG);
+            return json.writeValueAsString(Map.of("mimeType", "image/png", "data", java.util.Base64.getEncoder().encodeToString(png.toByteArray())));
+        } finally {
+            clipboard.dispose();
+        }
+    }
+
+    /** Asks the person for files: a picture goes to the agent as the picture, anything else by its path. */
+    private List<Map<String, Object>> chosenFiles() {
+        org.eclipse.swt.widgets.FileDialog dialog = new org.eclipse.swt.widgets.FileDialog(page.getShell(), org.eclipse.swt.SWT.OPEN | org.eclipse.swt.SWT.MULTI);
+        List<Map<String, Object>> chosen = new ArrayList<>();
+        if (dialog.open() == null) {
+            return chosen;
+        }
+        for (String name : dialog.getFileNames()) {
+            Path path = Path.of(dialog.getFilterPath(), name);
+            Map<String, Object> file = new LinkedHashMap<>();
+            file.put("path", path.toString());
+            String mimeType = imageTypeOf(name);
+            if (mimeType != null) {
+                try {
+                    file.put("image", Map.of("mimeType", mimeType, "data", java.util.Base64.getEncoder().encodeToString(java.nio.file.Files.readAllBytes(path))));
+                } catch (IOException unreadable) {
+                    log.accept("The picture could not be read, so it goes by its path: " + unreadable.getMessage());
+                }
+            }
+            chosen.add(file);
+        }
+        return chosen;
+    }
+
+    private static String imageTypeOf(String name) {
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        if (lower.endsWith(".png")) {
+            return "image/png";
+        }
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (lower.endsWith(".gif")) {
+            return "image/gif";
+        }
+        return lower.endsWith(".webp") ? "image/webp" : null;
+    }
+
     /** Ends every agent. */
     @Override
     public void close() {
+        if (chat == this) {
+            chat = null;
+        }
         stopWatching.run();
         stopWatchingTheme.run();
         relay.close();

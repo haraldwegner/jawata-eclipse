@@ -10,6 +10,15 @@
             allowMultiple="false">
          <description>The conversation with your coding agent: ask it to read, change and run your code through jawata's tools, and see what it did.</description>
       </view>
+      <!-- Sprint 28h, D53 (r): the views of the right stack, the chat's page in another role. -->
+      <view id="org.jawata.eclipse.chat.agents" name="Agent Control" category="org.jawata.eclipse.views"
+            class="org.jawata.eclipse.chat.ChatPanelView:agents" icon="icons/jawata16.png" allowMultiple="false">
+         <description>Who is working in this conversation: the principal and the agents it hired.</description>
+      </view>
+      <view id="org.jawata.eclipse.chat.btw" name="btw" category="org.jawata.eclipse.views"
+            class="org.jawata.eclipse.chat.ChatPanelView:side" icon="icons/jawata16.png" allowMultiple="false">
+         <description>A side discussion with its own agent. The main conversation goes on and is not told.</description>
+      </view>
    </extension>
    <!-- Plan Stage 21, step 21.8: where the person says which agent the chat talks to and the folder it works in. -->
    <extension point="org.eclipse.ui.preferencePages">
@@ -64,5 +73,21 @@
    </extension>
    <extension point="org.eclipse.ui.bindings">
       <key commandId="org.jawata.eclipse.chat.openChat" schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" sequence="M1+M3+J"/>
+   </extension>
+   <!-- D53 (r): the jawata logo in the toolbar opens the chat; Agent Control stands in the right stack of the Java perspective. -->
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="toolbar:org.eclipse.ui.main.toolbar">
+         <toolbar id="org.jawata.eclipse.chat.toolbar">
+            <command commandId="org.jawata.eclipse.chat.openChat" icon="icons/jawata16.png" tooltip="Open the jawata chat" style="push"/>
+         </toolbar>
+      </menuContribution>
+   </extension>
+   <extension point="org.eclipse.ui.perspectiveExtensions">
+      <perspectiveExtension targetID="org.eclipse.jdt.ui.JavaPerspective">
+         <view id="org.jawata.eclipse.chat.agents" relative="org.eclipse.ui.views.ContentOutline" relationship="bottom" ratio="0.4" visible="true"/>
+         <view id="org.jawata.eclipse.chat.btw" relative="org.jawata.eclipse.chat.agents" relationship="stack" visible="false"/>
+         <viewShortcut id="org.jawata.eclipse.chat.agents"/>
+         <viewShortcut id="org.jawata.eclipse.chat.btw"/>
+      </perspectiveExtension>
    </extension>
 </plugin>

@@ -166,6 +166,16 @@ public final class ChatPage extends Composite {
         }
     }
 
+    /**
+     * The address of the page in one of its roles, for a view beside the chat.
+     *
+     * @param role the role the page takes
+     * @return the page's address
+     */
+    static String panelUrl(String role) {
+        return pageUrl() + "?role=" + role;
+    }
+
     private static String pageUrl() {
         Bundle bundle = FrameworkUtil.getBundle(ChatPage.class);
         URL folder = bundle.getEntry("page/");

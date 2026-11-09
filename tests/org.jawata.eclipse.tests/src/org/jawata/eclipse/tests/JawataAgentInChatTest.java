@@ -323,7 +323,7 @@ public class JawataAgentInChatTest {
     }
 
     @Test
-    public void r5EachSeatHasABrainAndModelOptionTheHostCanHandBackToTheSeatFile() throws Exception {
+    public void r5NoSeatHasABrainOptionOfItsOwn() throws Exception {
         Await.found("the engine's listener", () -> EngineStartup.running().flatMap(engine -> engine.endpoint().reached()));
         Path folder = Files.createTempDirectory("jawata-r5-");
         try (Wire agent = new Wire(EngineAddress.agentCommand().orElseThrow(() -> new AssertionError("the chat has no agent to start")))) {
@@ -333,27 +333,14 @@ public class JawataAgentInChatTest {
             ObjectNode created = JSON.createObjectNode().put("jsonrpc", "2.0").put("id", 1).put("method", "session/new");
             created.putObject("params").put("cwd", folder.toString()).putArray("mcpServers");
             JsonNode opened = agent.ask(created);
+            // D53: a seat's default is set in the studio and a running agent's brain on its row, so the session offers no option per seat
             Set<String> seatOptions = new TreeSet<>();
             for (JsonNode option : opened.path("result").path("configOptions")) {
                 if (option.path("id").asText().startsWith("seat-model:")) {
                     seatOptions.add(option.path("id").asText());
                 }
             }
-            Set<String> recordedSeatOptions = new TreeSet<>();
-            for (JsonNode message : recorded("R5", "recv")) {
-                for (JsonNode option : message.path("result").path("configOptions")) {
-                    if (option.path("id").asText().startsWith("seat-model:")) {
-                        recordedSeatOptions.add(option.path("id").asText());
-                    }
-                }
-            }
-            assertTrue(!recordedSeatOptions.isEmpty() && seatOptions.containsAll(recordedSeatOptions),
-                "every seat the recording has an option for has one here: " + seatOptions + " / " + recordedSeatOptions);
-            String configId = "seat-model:test-writer";
-            ObjectNode set = JSON.createObjectNode().put("jsonrpc", "2.0").put("id", 2).put("method", "session/set_config_option");
-            set.putObject("params").put("sessionId", opened.path("result").path("sessionId").asText()).put("configId", configId).put("value", "seat-file");
-            JsonNode echoed = agent.ask(set);
-            assertEquals("seat-file", option(echoed, configId).path("currentValue").asText(), "the change is echoed with the options as they now stand: " + echoed);
+            assertTrue(seatOptions.isEmpty(), "a seat still has an option of its own: " + seatOptions);
         } finally {
             Files.deleteIfExists(folder);
         }

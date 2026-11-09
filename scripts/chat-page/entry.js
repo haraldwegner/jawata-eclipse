@@ -45,12 +45,71 @@ window.jawataHostDeliver = (text) => {
   if (message.kind === 'theme') { theme.textContent = message.css; } else { receive(message); }
 };
 
+// D53 (r): Agent Control and btw are views of their own, each a page with a role; the one core is in the chat's page and they reach it through Java
+const role = new URLSearchParams(location.search).get('role');
+
+function startPanel() {
+  let hear = null;
+  receive = (message) => { if (message.kind === 'view') { hear?.(message.message); } };
+  early.splice(0).forEach(receive);
+  mountChatView(root, {
+    send(intent) { bridge.call({ op: 'fromPanel', role, intent }); },
+    onMessage(handler) { hear = handler; return { dispose() { hear = null; } }; },
+  }, role);
+  bridge.call({ op: 'panelReady', role });
+}
+
+/** The chat's page: one port of the core for each panel view Java says has opened. */
+function panelPorts(chat) {
+  const ports = new Map();
+  return (message) => {
+    if (message.kind === 'panelOpen') {
+      const port = {
+        hear: null,
+        closed: [],
+        post(msg) { bridge.call({ op: 'toPanel', role: message.role, message: msg }); },
+        onMessage(handler) { port.hear = handler; return { dispose() { port.hear = null; } }; },
+        onDispose(handler) { port.closed.push(handler); return { dispose() {} }; },
+      };
+      ports.get(message.role)?.closed.forEach(close => close());
+      ports.set(message.role, port);
+      chat.controller.attachPanel(port);
+    } else if (message.kind === 'panelIntent') {
+      ports.get(message.role)?.hear?.(message.intent);
+    } else if (message.kind === 'panelClosed') {
+      ports.get(message.role)?.closed.forEach(close => close());
+      ports.delete(message.role);
+    }
+  };
+}
+
+/**
+ * D53 (r): the embedded browser of Eclipse on Linux gives the page no picture when one is pasted, so after Ctrl+V in the field, unless the page got
+ * the picture itself, Java reads it from the clipboard.
+ */
+function pasteFromTheClipboard(link) {
+  let pageHadPicture = false;
+  document.addEventListener('paste', (e) => {
+    pageHadPicture = [...(e.clipboardData?.items ?? [])].some(item => item.kind === 'file' && item.type.startsWith('image/'));
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'v' || e.target?.tagName !== 'TEXTAREA') { return; }
+    pageHadPicture = false;
+    setTimeout(() => {
+      if (pageHadPicture) { return; }
+      const picture = bridge.call({ op: 'clipboardPicture' });
+      if (picture) { link.deliver({ type: 'attachPasted', name: 'screenshot.png', mimeType: picture.mimeType, data: picture.data }); }
+    }, 100);
+  }, true);
+}
+
 let started = false;
 function start() {
   if (started) { return; }
   started = true;
   const first = bridge.call({ op: 'theme' });
   if (first && first.css) { theme.textContent = first.css; }
+  if (role) { startPanel(); return; }
   const host = createEclipseHost(bridge, bridge.call({ op: 'config' }));
   receive = host.receive;
   early.splice(0).forEach(receive);
@@ -62,8 +121,12 @@ function start() {
   });
   const queue = commandQueue(() => commands, bridge);
   const events = host.receive;
-  receive = (message) => { if (message.kind === 'command') { queue(message); } else { events(message); } };
+  const panels = panelPorts(chat);
+  receive = (message) => {
+    if (message.kind === 'command') { queue(message); } else if (message.kind.startsWith('panel')) { panels(message); } else { events(message); }
+  };
   mountChatView(root, link.page);
+  pasteFromTheClipboard(link);
   window.jawataChatPage = { contract: VIEW_CONTRACT_VERSION, chat, link };
   window.addEventListener('unload', () => { chat.dispose(); });
   bridge.call({ op: 'started', contract: VIEW_CONTRACT_VERSION });

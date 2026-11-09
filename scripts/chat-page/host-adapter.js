@@ -102,7 +102,12 @@ export function createEclipseHost(bridge, config) {
       info: (message) => { bridge.call({ op: 'info', message }); },
       error: (message) => { bridge.call({ op: 'error', message }); },
     },
-    actions: { configureAgent: async () => { await ask({ op: 'configureAgent' }); } },
+    actions: {
+      configureAgent: async () => { await ask({ op: 'configureAgent' }); },
+      showSide: () => { bridge.call({ op: 'showSide' }); },
+      hideSide: () => { bridge.call({ op: 'hideSide' }); },
+      chooseFiles: async () => (await ask({ op: 'chooseFiles' })) ?? [],
+    },
     sinks: () => [],
     clientInfo: { name: config.clientInfo?.name ?? 'eclipse-jawata-chat', version: config.clientInfo?.version ?? '0' },
   };
