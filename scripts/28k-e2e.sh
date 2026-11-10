@@ -188,8 +188,10 @@ p16() {  # $1 package, $2 eclipse dir, $3 run dir
 # P20 (plan Stage 20, spec D9): real Eclipse instances with the plug-in write real notes; studio's compiled code reads them with its own
 # reader and the row builder both the list and the tray call (src-tauri/tests/p20_real_eclipse_notes.rs in jawata-studio, the studio
 # checkout named by JAWATA_STUDIO). Studio has no command-line door to its dashboard, so the test calls the production functions. Three
-# workspaces: C is opened once and closed (studio saw it live, so it stays listed, not running); A and B are open at the end. Expected:
-# C alone: 1 running; C closed: 0 running, 1 not running; A, B and C: 2 running, 1 not running. Studio deletes no note and no row has a switch.
+# workspaces: C is opened once and closed; A and B are open at the end. NONE of them holds a project, and since studio 4.6.0 a closed workspace
+# that held no project is neither listed nor remembered (an empty "ws" from a throwaway Eclipse run was ten rows; the remembering of one that
+# held a project is held by studio's own tests, the_last_project_list_is_what_is_remembered). Expected: C alone: 1 running; C closed: 0 running,
+# 0 not running; A, B and C: 2 running, 0 not running. Studio deletes no note and no row has a switch. (Before 4.6.0 this read 0,1 and 2,1.)
 p20_start() {  # $1 eclipse dir, $2 workspace dir, $3 notes dir, $4 console fifo, $5 console output, $6 fd number → sets p20_pid
     mkdir -p "$2" "$3"; rm -f "$4"; mkfifo "$4"
     xvfb-run -a "$1/eclipse" -nosplash -data "$2" -consoleLog -console -vmargs "-Djawata.engine.notes.dir=$3" < "$4" > "$5" 2>&1 &
@@ -224,15 +226,15 @@ p20() {  # $1 package, $2 eclipse dir, $3 run dir
     if [ $? -eq 0 ]; then ok "P20 $pkg: one Eclipse open: studio's reader shows 1 running Eclipse workspace, no switch, no note deleted"
     else fail "P20 $pkg: studio's reader did not show 1 running: $(echo "$out" | tail -6 | tr '\n' ' ')"; p20_stop "$pid_c" 5; return; fi
     p20_stop "$pid_c" 5
-    out="$(p20_studio "$notes" "$settings" "0,1")"
-    if [ $? -eq 0 ]; then ok "P20 $pkg: after that Eclipse closed, studio still lists its workspace, not running (it remembered it)"
-    else fail "P20 $pkg: the closed workspace is not listed as not running: $(echo "$out" | tail -6 | tr '\n' ' ')"; return; fi
+    out="$(p20_studio "$notes" "$settings" "0,0")"
+    if [ $? -eq 0 ]; then ok "P20 $pkg: after that Eclipse closed, studio lists nothing for it: the workspace held no project, so there is nothing to show (since 4.6.0)"
+    else fail "P20 $pkg: studio lists a closed workspace that held no project: $(echo "$out" | tail -6 | tr '\n' ' ')"; return; fi
     p20_start "$eclipse" "$run/p20-ws-a" "$notes" "$run/p20-a.fifo" "$run/p20-a.out" 6; pid_a=$p20_pid
     p20_start "$eclipse" "$run/p20-ws-b" "$notes" "$run/p20-b.fifo" "$run/p20-b.out" 7; pid_b=$p20_pid
     if p20_wait_notes "$notes" 2; then
-        out="$(p20_studio "$notes" "$settings" "2,1")"
-        if [ $? -eq 0 ]; then ok "P20 $pkg: two Eclipse instances open and one closed: studio answers 2 running, 1 not running, no switch on any, the tray rows are the list's rows ($(echo "$out" | grep -c 'row:') rows)"
-        else fail "P20 $pkg: studio's answer is not 2 running, 1 not running: $(echo "$out" | tail -6 | tr '\n' ' ')"; fi
+        out="$(p20_studio "$notes" "$settings" "2,0")"
+        if [ $? -eq 0 ]; then ok "P20 $pkg: two Eclipse instances open and one closed: studio answers 2 running, 0 not running (the closed one held no project), no switch on any, the tray rows are the list's rows ($(echo "$out" | grep -c 'row:') rows)"
+        else fail "P20 $pkg: studio's answer is not 2 running, 0 not running: $(echo "$out" | tail -6 | tr '\n' ' ')"; fi
         # P25 (plan Stage 25, the cross-repository note gate): the same studio test also raises the schema major in a COPY of a real note the
         # plug-in just wrote, and studio's reader must refuse it (a row marked newer jawata, not running, not read further)
         if echo "$out" | grep -q 'a copy with the schema raised to major 9 is refused'; then ok "P25 $pkg: a copy of the real note with its schema major raised is refused by studio's reader (newer jawata, not running)"
@@ -473,8 +475,11 @@ for pkg in java rcp; do
     log="$here/tests/org.jawata.eclipse.tests/target/work/data/.metadata/.log"
     # frames of the test bundle itself are not jawata's code: HostPortsTest throws an exception on purpose to prove one is logged
     # and entries that are the Stage 18 tests' deliberate refusals (UNSAVED_IN_EDITOR, CHARSET_NOT_UTF8): the engine's own logger writes
-    # an expected refusal into Eclipse's log with its whole stack (ledger 28k-A18-6), and the refusal is the behaviour under test
-    noise="$( [ -f "$log" ] && awk 'BEGIN { RS = "!ENTRY" } !/UNSAVED_IN_EDITOR|CHARSET_NOT_UTF8/' "$log" | grep -E 'is ignored|already registered|at org\.jawata\.' | grep -v 'at org\.jawata\.eclipse\.tests\.' | head -3 )"
+    # an expected refusal into Eclipse's log with its whole stack (ledger 28k-A18-6), and the refusal is the behaviour under test. Three more
+    # entries are provoked on purpose and were not excused until the first run of this check on the released 0.1.0 (2026-11-10): the engine's
+    # lifecycle contract makes a listener fail on port 8123 (address in use) and on port 1 to prove each failure is reported once, and
+    # HostRunsTest asks for a run configuration named no-such-configuration to prove the answer names it and starts nothing.
+    noise="$( [ -f "$log" ] && awk 'BEGIN { RS = "!ENTRY" } !/UNSAVED_IN_EDITOR|CHARSET_NOT_UTF8|could not open its listener on port (8123|1);|no-such-configuration/' "$log" | grep -E 'is ignored|already registered|at org\.jawata\.' | grep -v 'at org\.jawata\.eclipse\.tests\.' | head -3 )"
     if [ -n "$tests_out" ] && grep -q -- "-install $eclipse " "$tests_out" && [ -z "$noise" ]; then
         ok "D6 $pkg: Eclipse's log in the test run has no rejected registration and no exception from jawata's code"
     else

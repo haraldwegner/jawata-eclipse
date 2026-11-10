@@ -55,6 +55,13 @@ open_chat() {  # $1 name of the run → starts Eclipse, opens the chat through Q
         sleep 2
     done
     sleep 30
+    # In the Java perspective the chat's view is created as Eclipse starts (the Agent Control stack is in that perspective since Stage 22),
+    # so the question is already on screen before anyone opens the chat: found on the first run of this check on the released Java
+    # download, 2026-11-10, where the typed "jawata chat" answered it with its space. Then nothing is typed: the question is the one to look at.
+    if xdotool search --onlyvisible --name "$title" >/dev/null 2>&1; then
+        asked_at_start=yes
+        return
+    fi
     xdotool mousemove 500 400 click 1
     sleep 1
     xdotool key ctrl+3
@@ -106,5 +113,7 @@ if [ "$(chat_pixels "$work/shots/run2.png")" -le 0 ]; then
     echo "first-run-check: FAIL with a stored choice the chat was not on screen after it was opened (picture $work/shots/run2.png)"
     exit 1
 fi
-echo "first-run-check: ok the first time the chat was opened the window \"$title\" was on screen, its first button put the chat in the middle and was kept as placement=editor, and a second opening with the choice stored did not ask again"
+when="the first time the chat was opened"
+[ "${asked_at_start:-}" = yes ] && when="at the first start (the chat's view is created with this perspective)"
+echo "first-run-check: ok $when the window \"$title\" was on screen, its first button put the chat in the middle and was kept as placement=editor, and a second opening with the choice stored did not ask again"
 exit 0
