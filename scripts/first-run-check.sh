@@ -55,21 +55,19 @@ open_chat() {  # $1 name of the run → starts Eclipse, opens the chat through Q
         sleep 2
     done
     sleep 30
-    # In the Java perspective the chat's view is created as Eclipse starts (the Agent Control stack is in that perspective since Stage 22),
-    # so the question is already on screen before anyone opens the chat: found on the first run of this check on the released Java
-    # download, 2026-11-10, where the typed "jawata chat" answered it with its space. Then nothing is typed: the question is the one to look at.
+    # The chat is opened with the plug-in's own key (Ctrl+Alt+J, plugin.xml), not by typing "jawata chat" into Quick Access: in the Java
+    # download that typing did not reach Quick Access, "j" selected the chat's tab in a view stack, and the space in the text pressed the
+    # question's first button before this script looked (the first run on the released 0.1.0 failed that way, 2026-11-10). The question
+    # must not be on screen before the chat is opened: the released Java perspective asked at the first start, and the chat was then not placed.
     if xdotool search --onlyvisible --name "$title" >/dev/null 2>&1; then
-        asked_at_start=yes
-        return
+        import -window root "$work/shots/$1-question-before-the-chat-was-opened.png"
+        echo "first-run-check: FAIL the question \"$title\" was on screen before anyone opened the chat (picture $work/shots/$1-question-before-the-chat-was-opened.png)"
+        exit 1
     fi
     xdotool mousemove 500 400 click 1
     sleep 1
-    xdotool key ctrl+3
-    sleep 2
-    xdotool type --delay 80 "jawata chat"
-    sleep 3
-    xdotool key Return
-    sleep 6
+    xdotool key ctrl+alt+j
+    sleep 8
 }
 
 stop_eclipse() {
@@ -89,6 +87,10 @@ if ! xdotool search --onlyvisible --name "$title" >/dev/null 2>&1; then
     exit 1
 fi
 import -window root "$work/shots/run1-question.png"
+# the screen has no window manager, so a new window does not take the keyboard by itself: the question gets it before Return is pressed
+question_window="$(xdotool search --onlyvisible --name "$title" | head -1)"
+xdotool windowfocus "$question_window" 2>/dev/null
+sleep 1
 xdotool key Return
 sleep 8
 import -window root "$work/shots/run1-after-answer.png"
@@ -113,7 +115,5 @@ if [ "$(chat_pixels "$work/shots/run2.png")" -le 0 ]; then
     echo "first-run-check: FAIL with a stored choice the chat was not on screen after it was opened (picture $work/shots/run2.png)"
     exit 1
 fi
-when="the first time the chat was opened"
-[ "${asked_at_start:-}" = yes ] && when="at the first start (the chat's view is created with this perspective)"
-echo "first-run-check: ok $when the window \"$title\" was on screen, its first button put the chat in the middle and was kept as placement=editor, and a second opening with the choice stored did not ask again"
+echo "first-run-check: ok the first time the chat was opened the window \"$title\" was on screen, its first button put the chat in the middle and was kept as placement=editor, and a second opening with the choice stored did not ask again"
 exit 0

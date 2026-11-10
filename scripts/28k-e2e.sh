@@ -462,7 +462,7 @@ for pkg in java rcp; do
     # choices on the preference page (ChatLastConversationTest, 5 tests).
     placements="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.ChatPlacementsTest$' "$tests_out" | head -1)"
     case "$placements" in
-        "Tests run: 10, Failures: 0, Errors: 0"*) ok "P23 $pkg: the chat view opens in the middle or in a side panel as chosen, loads and takes a command in each, the real first-run question has two buttons that each choose their place and asks once, a chat closed from the middle opens in a side panel when that is now chosen, a chat that carries the saved mark is not moved, an open chat stays, and the saved layout holds the view with its mark (${placements%%,*})" ;;
+        "Tests run: 11, Failures: 0, Errors: 0"*) ok "P23 $pkg: the chat view opens in the middle or in a side panel as chosen, loads and takes a command in each, the real first-run question has two buttons that each choose their place and asks once, a chat closed from the middle opens in a side panel when that is now chosen, a chat that carries the saved mark is not moved, an open chat stays, and the saved layout holds the view with its mark (${placements%%,*})" ;;
         *) fail "P23 $pkg: the chat placement tests did not pass in this download (${placements:-they did not run})" ;;
     esac
     lastconv="$(grep -h 'Tests run:.*in org.jawata.eclipse.tests.ChatLastConversationTest$' "$tests_out" | head -1)"

@@ -23,6 +23,8 @@ public final class ChatView extends ViewPart {
     private ChatPlacement chat;
     /** The workbench model entry of this view, held from the start because the services that find it may be gone when the view closes. */
     private MPart modelEntry;
+    /** What waits for a chat created hidden to be shown for the first time; null when nothing waits. */
+    private org.eclipse.ui.IPartListener2 waitingToBeShown;
 
     @Override
     public void createPartControl(Composite parent) {
@@ -30,15 +32,52 @@ public final class ChatView extends ViewPart {
         MPart part = getSite().getService(MPart.class);
         modelEntry = part;
         if (part != null && !part.getPersistedState().containsKey(PLACED)) {
-            part.getPersistedState().put(PLACED, "yes");
-            parent.getDisplay().asyncExec(this::placeWhereChosen);
+            parent.getDisplay().asyncExec(this::placeWhenShown);
         }
     }
 
-    /** Puts a chat that has just opened where the person chose, asking once if they have not. */
+    /**
+     * A chat that has just been created is placed when it is shown. Agent Control creates it in the background when its page is ready, which
+     * in the Java perspective is at the first start, with the chat behind other views of a stack: asked then, the person met the question
+     * before anything of the chat was on screen, and a view that is not shown cannot be moved, so it stayed where it was with the answer
+     * kept and the placed mark set (found on the released 0.1.0, 2026-11-10).
+     */
+    private void placeWhenShown() {
+        if (chat == null || chat.page().isDisposed()) {
+            return;
+        }
+        IWorkbenchPage page = getSite().getPage();
+        if (page.isPartVisible(this)) {
+            placeWhereChosen();
+            return;
+        }
+        waitingToBeShown = new org.eclipse.ui.IPartListener2() {
+            @Override
+            public void partVisible(org.eclipse.ui.IWorkbenchPartReference reference) {
+                if (reference.getPart(false) == ChatView.this) {
+                    stopWaiting();
+                    getSite().getShell().getDisplay().asyncExec(ChatView.this::placeWhereChosen);
+                }
+            }
+        };
+        page.addPartListener(waitingToBeShown);
+    }
+
+    /** Stops waiting for the first showing: the chat is shown, or it is closed before it ever was. */
+    private void stopWaiting() {
+        if (waitingToBeShown != null) {
+            getSite().getPage().removePartListener(waitingToBeShown);
+            waitingToBeShown = null;
+        }
+    }
+
+    /** Puts a chat that is shown for the first time where the person chose, asking once if they have not. */
     private void placeWhereChosen() {
         if (chat == null || chat.page().isDisposed()) {
             return;
+        }
+        if (modelEntry != null) {
+            modelEntry.getPersistedState().put(PLACED, "yes");
         }
         ChatPlacementChoice.Where where = ChatPlacementChoice.resolve(getSite().getShell());
         IWorkbenchPage page = getSite().getPage();
@@ -61,6 +100,7 @@ public final class ChatView extends ViewPart {
 
     @Override
     public void dispose() {
+        stopWaiting();
         if (chat != null) {
             chat.close();
         }

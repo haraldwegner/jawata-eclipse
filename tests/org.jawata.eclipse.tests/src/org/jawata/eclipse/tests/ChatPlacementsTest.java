@@ -2,6 +2,7 @@ package org.jawata.eclipse.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -391,6 +392,72 @@ public class ChatPlacementsTest {
         ChatView view = open(page);
         awaitInTheEditorArea(view);
         assertEquals(Optional.empty(), ChatPlacementChoice.chosen(), "nothing was chosen by closing the question");
+    }
+
+    /**
+     * What the released 0.1.0 did in the Java perspective (found 2026-11-10 by the end-to-end script on the published update site): Agent
+     * Control, which stands in that perspective from the first start, creates the chat view in the background when its page is ready. The
+     * chat then asked "Where should the jawata chat open?" at once, nobody having opened it, and, being hidden, could not be moved, so the
+     * answer was kept and the chat stayed in a stack, marked as placed, for good. A chat created hidden asks nothing; shown, it asks once
+     * and goes where the answer says.
+     */
+    @Test
+    public void aChatCreatedInTheBackgroundAsksNothingUntilItIsShownThenAsksOnceAndIsPlaced() throws Exception {
+        Runnable restoreChoice = ChatPlacementSetup.choose(Where.SIDE_PANEL);
+        ChatPlacementChoice.askAgain();
+        int[] asked = { 0 };
+        Runnable restoreAsker = ChatPlacementChoice.askWith(shell -> {
+            asked[0]++;
+            return Optional.of(Where.EDITOR_AREA);
+        });
+        putBack = () -> {
+            restoreAsker.run();
+            restoreChoice.run();
+        };
+        IWorkbenchPage page = UiThread.call(ChatPlacementsTest::activePage);
+        // what Agent Control does when its page is ready: the chat is created, not shown. Whether it is visible is read in the same step, before
+        // anything the creation queued has run: a chat that asks at once (the unfixed one) also places and shows itself a step later
+        boolean[] visibleAtCreation = { true };
+        ChatView hidden = UiThread.call(() -> {
+            try {
+                page.showView(ChatView.ID, null, IWorkbenchPage.VIEW_CREATE);
+                IViewPart problems = page.showView("org.eclipse.ui.views.ProblemView", null, IWorkbenchPage.VIEW_ACTIVATE);
+                ChatView chat = (ChatView) page.findView(ChatView.ID);
+                // in the Java perspective the chat sits behind other views of one stack (Problems, Javadoc, Declaration); alone in a stack it
+                // would be visible, so it is put into the Problems stack and Problems is the view shown
+                EModelService models = PlatformUI.getWorkbench().getService(EModelService.class);
+                org.eclipse.e4.ui.model.application.ui.advanced.MPlaceholder problemsRef = problems.getSite().getService(MPart.class).getCurSharedRef();
+                models.move(partOf(chat).getCurSharedRef(), problemsRef.getParent());
+                problemsRef.getParent().setSelectedElement(problemsRef);
+                visibleAtCreation[0] = page.isPartVisible(chat);
+                return chat;
+            } catch (Exception cannotCreate) {
+                throw new AssertionError("the chat view could not be created in the background: " + cannotCreate, cannotCreate);
+            }
+        });
+        assertNotNull(hidden, "the chat view was created");
+        assertFalse(visibleAtCreation[0], "the premise of this test: a chat created behind another view of its stack is not visible");
+        // the workbench gets time to run what the creation queued
+        Thread.sleep(1500);
+        UiThread.call(() -> {
+            while (Display.getDefault().readAndDispatch()) {
+                // run what is queued
+            }
+            return null;
+        });
+        assertEquals(0, asked[0], "a chat nobody has opened asks nothing");
+        assertEquals(Optional.empty(), ChatPlacementChoice.chosen(), "and keeps no choice");
+        assertNotEquals("yes", UiThread.call(() -> partOf(hidden).getPersistedState().get(PLACED)), "and is not marked as placed, so it is placed when it is shown");
+
+        UiThread.call(() -> {
+            page.activate(hidden);
+            return null;
+        });
+        Await.found("the question asked once the chat is shown", () -> asked[0] == 1 ? Optional.of(true) : Optional.empty());
+        awaitInTheEditorArea(hidden);
+        assertEquals(1, asked[0], "the question is asked once");
+        assertEquals(Optional.of(Where.EDITOR_AREA), ChatPlacementChoice.chosen(), "the answer is kept");
+        assertEquals("yes", UiThread.call(() -> partOf(hidden).getPersistedState().get(PLACED)), "and the chat is marked as placed");
     }
 
     @Test
