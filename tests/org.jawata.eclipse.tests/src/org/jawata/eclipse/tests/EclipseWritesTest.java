@@ -285,7 +285,9 @@ public class EclipseWritesTest {
             // kept as a trial the gate accepted: the way the engine keeps every change it applies
             WorkspaceWrites.Applied applied = trialRename(writes, file, "hey");
             assertTrue(writes.keep(applied, "jawata gate trial"), "the host kept it");
-            assertEquals(before + 2, undoSteps(), "the kept change is a second step on Edit > Undo");
+            assertEquals(before + 2, undoSteps(), "the kept change is a second step on Edit > Undo; before=" + before + ", limit="
+                + HISTORY.getLimit(UNDO) + ", on the history now: "
+                + java.util.Arrays.stream(HISTORY.getUndoHistory(UNDO)).map(o -> o.getLabel()).toList());
 
             engineTakesBack(writes, applied);
 
