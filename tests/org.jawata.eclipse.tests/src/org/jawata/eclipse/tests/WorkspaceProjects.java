@@ -53,7 +53,12 @@ final class WorkspaceProjects {
         return project;
     }
 
-    /** Removes the projects from the workspace and from disk; one that cannot be removed is left to the workspace's own cleanup. */
+    /**
+     * Removes the projects from the workspace and from disk; one that cannot be removed is left to the workspace's own cleanup. The
+     * workspace's undo history is emptied too: Eclipse drops the steps of a deleted project from it a moment later, on its own, so a
+     * test that counted the steps on it before that moment and again after it found fewer than it had added (the release runner's
+     * EclipseWritesTest: five steps before, two added, five after). Emptied here, the next test starts from nothing that can change.
+     */
     static void deleteQuietly(IProject... projects) {
         for (IProject project : projects) {
             try {
@@ -62,5 +67,7 @@ final class WorkspaceProjects {
                 // a project that cannot be removed is left to the workspace's own cleanup
             }
         }
+        org.eclipse.core.commands.operations.OperationHistoryFactory.getOperationHistory()
+            .dispose(org.eclipse.ui.ide.undo.WorkspaceUndoUtil.getWorkspaceUndoContext(), true, true, false);
     }
 }
