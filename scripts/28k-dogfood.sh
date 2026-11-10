@@ -48,6 +48,9 @@ echo "28k-dogfood: the engine inside Eclipse on the jawata-mcp clone; output in 
     -Djawata.live=true -Dtest=DogfoodTest -DfailIfNoSpecifiedTests=false -Dsurefire.failIfNoSpecifiedTests=false \
     -Djawata.download="$eclipse" -Djawata.profile="epp.package.java" -Djawata.product="org.eclipse.epp.package.java.product") > "$out" 2>&1
 rc=$?
+# The clone (about 255 MB) was only the test's subject. Its Gradle sample projects also showed up as a Gradle build error in the dev workspace
+# whenever it was left lying around (D54 (i)). The report and the output stay.
+rm -rf "$run/jawata-mcp"
 grep -h 'jawata-dogfood' "$out" | head -80
 summary="$(grep -E '^Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+$' "$out" | tail -1)"
 if [ "$rc" = 0 ] && echo "$summary" | grep -q '^Tests run: 1, Failures: 0, Errors: 0, Skipped: 0$'; then
