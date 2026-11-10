@@ -88,8 +88,10 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install the virtual display
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+      # The chat and terminal views are SWT browsers, and SWT on Linux needs the system's WebKit for them. The second dry run, on a runner
+      # without it, failed every test that opens one ("No more handles because there is no underlying browser available").
+      - name: Install the virtual display and the browser library
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libwebkit2gtk-4.1-0
 
       # engine.version names the released engine; the script checks the download against GitHub's digest.
       - name: Fetch the engine
